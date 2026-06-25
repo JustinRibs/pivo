@@ -24,6 +24,7 @@
           <a href="#section-branding" class="nav-link active" data-target="section-branding">Branding</a>
           <a href="#section-tautulli" class="nav-link" data-target="section-tautulli">Tautulli</a>
           <a href="#section-arr" class="nav-link" data-target="section-arr">Radarr / Sonarr</a>
+          <a href="#section-requests" class="nav-link" data-target="section-requests">Requests</a>
           <a href="#section-images" class="nav-link" data-target="section-images">Image hosting</a>
           <a href="#section-smtp" class="nav-link" data-target="section-smtp">Email (SMTP)</a>
           <a href="#section-content" class="nav-link" data-target="section-content">Content</a>
@@ -73,6 +74,20 @@
             Placeholders: <code>{{first_name}}</code>, <code>{{name}}</code>, <code>{{email}}</code>, <code>{{unsubscribe_url}}</code>.
             Falls back to <strong>"there"</strong> when a recipient has no name set (e.g. <em>"Hey there,"</em>).
           </p>
+
+          <h3>Personalized greeting</h3>
+          <div class="row">
+            <label class="checkbox">
+              <input data-field="greeting_enabled" type="checkbox" />
+              <span>Show a greeting line at the top of the newsletter</span>
+            </label>
+          </div>
+          <div class="row single">
+            <label>Greeting text
+              <input data-field="greeting_text" type="text" placeholder="Welcome back, {{first_name}}" />
+            </label>
+          </div>
+          <p class="hint">Rendered prominently under the logo, personalized per recipient. Supports the same placeholders as above.</p>
 
           <div class="logo-block">
             <div class="logo-preview" id="logo-preview">
@@ -172,6 +187,30 @@
             <span id="test-sonarr-status" class="hint"></span>
           </div>
           <p class="hint">Posters are pulled from TMDB / TVDB (publicly hosted), so they embed directly without going through your Radarr/Sonarr instance.</p>
+        </section>
+
+        <section id="section-requests" class="card">
+          <h2>Requests</h2>
+          <p class="hint">
+            Add a <strong>"Request a movie or show"</strong> button near the bottom of the newsletter, linking to your
+            <a href="https://overseerr.dev/" target="_blank" rel="noreferrer">Overseerr</a> /
+            <a href="https://github.com/Fallenbagel/jellyseerr" target="_blank" rel="noreferrer">Jellyseerr</a>
+            instance (or any URL). Lets recipients ask for content right from the email.
+          </p>
+          <div class="row">
+            <label class="checkbox">
+              <input data-field="request_enabled" type="checkbox" />
+              <span>Show the request button in the newsletter</span>
+            </label>
+          </div>
+          <div class="row">
+            <label>Request URL
+              <input data-field="request_url" type="url" placeholder="https://requests.yourdomain.com" />
+            </label>
+            <label>Button label
+              <input data-field="request_label" type="text" placeholder="Request a movie or show" />
+            </label>
+          </div>
         </section>
 
         <section id="section-images" class="card">
@@ -312,6 +351,10 @@
               <input data-field="stats_window_days" type="number" min="1" max="90" />
             </label>
           </div>
+
+          <h3>Section order</h3>
+          <p class="hint">Drag to reorder how sections appear in the newsletter. Disabled or empty sections are simply skipped.</p>
+          <ul id="section-order-list" class="section-order" aria-label="Newsletter section order"></ul>
         </section>
 
         <section id="section-schedule" class="card">
@@ -387,9 +430,15 @@
             <input id="test-email" type="email" placeholder="you@example.com" />
             <button id="test-send-btn" class="btn">Send test to me</button>
             <button id="send-now-btn" class="btn btn-primary">Send to all active recipients</button>
+            <div class="device-toggle" data-preview="main" role="group" aria-label="Preview width">
+              <button class="btn btn-ghost device-btn active" type="button" data-device="desktop">Desktop</button>
+              <button class="btn btn-ghost device-btn" type="button" data-device="mobile">Mobile</button>
+            </div>
           </div>
           <span id="send-status" class="hint"></span>
-          <iframe id="preview-frame" title="Newsletter preview"></iframe>
+          <div class="preview-wrap">
+            <iframe id="preview-frame" title="Newsletter preview"></iframe>
+          </div>
         </section>
 
         <section id="section-compose" class="card">
@@ -452,9 +501,15 @@
             <input id="bc-test-email" type="email" placeholder="you@example.com" />
             <button class="btn" id="bc-test-btn" type="button">Send test to me</button>
             <button class="btn btn-primary" id="bc-send-btn" type="button">Send broadcast</button>
+            <div class="device-toggle" data-preview="bc" role="group" aria-label="Preview width">
+              <button class="btn btn-ghost device-btn active" type="button" data-device="desktop">Desktop</button>
+              <button class="btn btn-ghost device-btn" type="button" data-device="mobile">Mobile</button>
+            </div>
           </div>
           <span id="bc-status" class="hint"></span>
-          <iframe id="bc-preview-frame" title="Broadcast preview"></iframe>
+          <div class="preview-wrap">
+            <iframe id="bc-preview-frame" title="Broadcast preview"></iframe>
+          </div>
         </section>
 
         <section id="section-history" class="card">

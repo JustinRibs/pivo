@@ -86,6 +86,8 @@ fastify.put<{ Body: Partial<Settings> }>('/api/settings', async (req) => {
     'enable_stats',
     'stats_window_days',
     'schedule_enabled',
+    'greeting_enabled',
+    'request_enabled',
     'cloudinary_enabled',
     'radarr_enabled',
     'sonarr_enabled',

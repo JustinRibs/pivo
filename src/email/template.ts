@@ -26,6 +26,30 @@ export interface TemplateData {
 /** Placeholder string the sender substitutes per-recipient. */
 export const UNSUBSCRIBE_PLACEHOLDER = '{{UNSUBSCRIBE_URL}}';
 
+/** Canonical order + the full set of reorderable body-section keys. */
+export const DEFAULT_SECTION_ORDER = [
+  'stats', 'top_movies', 'top_tv', 'top_users',
+  'recent_movies', 'recent_tv', 'recent_music',
+  'upcoming_movies', 'upcoming_shows'
+] as const;
+
+/**
+ * Parse the persisted `section_order` JSON, drop anything unknown, then append
+ * any known keys the saved order is missing (e.g. after an upgrade adds one).
+ */
+function resolveSectionOrder(raw: string | undefined): string[] {
+  const known = new Set<string>(DEFAULT_SECTION_ORDER);
+  let parsed: unknown;
+  try {
+    parsed = raw ? JSON.parse(raw) : null;
+  } catch {
+    parsed = null;
+  }
+  const order = Array.isArray(parsed) ? parsed.filter((k): k is string => typeof k === 'string' && known.has(k)) : [];
+  for (const k of DEFAULT_SECTION_ORDER) if (!order.includes(k)) order.push(k);
+  return order;
+}
+
 /**
  * `posterSrc` is a ready-to-render `src=` value: either `cid:img1@…` (inline
  * attachment) or `https://…` (when Cloudinary hosting is enabled). The
@@ -38,6 +62,8 @@ export interface RenderedItem {
   posterSrc?: string;
   badge?: string;
   year?: string;
+  /** Small metadata chips under the title, e.g. ["★ 8.4", "2h 16m", "PG-13", "1080p"]. */
+  metaParts?: string[];
 }
 
 export interface RenderedShow {
@@ -95,24 +121,65 @@ function shortSummary(s: string | undefined, max = 110): string {
   return trimmed.slice(0, max - 1).replace(/\s+\S*$/, '') + '…';
 }
 
+/** Mix a hex color toward white by `amt` (0–1). Used to build accent gradients. */
+function lightenHex(hex: string, amt = 0.35): string {
+  const m = /^#?([0-9a-fA-F]{6})$/.exec(hex || '');
+  if (!m) return hex || '#e5a00d';
+  const n = parseInt(m[1], 16);
+  const r = Math.round(((n >> 16) & 255) + (255 - ((n >> 16) & 255)) * amt);
+  const g = Math.round(((n >> 8) & 255) + (255 - ((n >> 8) & 255)) * amt);
+  const b = Math.round((n & 255) + (255 - (n & 255)) * amt);
+  return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
+
+/**
+ * A 1px section rule that fades from the accent on the left into the divider
+ * color. Solid `divider` is set first so Outlook (no gradient support) still
+ * shows a clean hairline.
+ */
+function accentRule(accent: string): string {
+  const light = lightenHex(accent, 0.2);
+  return `<mj-raw>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
+      <tr><td style="height:1px; line-height:1px; font-size:0; background:${COLORS.divider}; background:linear-gradient(90deg, ${accent}, ${light} 18%, ${COLORS.divider} 60%);">&nbsp;</td></tr>
+    </table>
+  </mj-raw>`;
+}
+
 export function buildMjml(data: TemplateData): string {
   const { settings, movies, shows, music, topMovies, topTV, topUsers, stats, upcomingMovies, upcomingShows, upcomingWindowDays, generatedDate, logoSrc, includeUnsubscribe } = data;
   const accent = settings.brand_accent || '#e5a00d';
+  const accentLight = lightenHex(accent, 0.4);
   const brandName = esc(settings.brand_name || 'Pivo');
   const headerHtml = settings.brand_header_html || '';
   const footerHtml = settings.brand_footer_html || '';
   const showSummaries = !!settings.show_summaries;
-  const { bg, text, muted, divider } = COLORS;
+  const { bg, text, muted } = COLORS;
 
   const logoBlock = logoSrc
     ? `<mj-image src="${esc(logoSrc)}" alt="${brandName}" width="140px" align="center" padding="0" />`
     : `<mj-text align="center" font-size="24px" font-weight="700" color="${text}" letter-spacing="-0.02em" padding="0">${brandName}</mj-text>`;
+
+  // Per-recipient greeting line. {{first_name}} etc. are substituted downstream
+  // by applySubstitutions, so the placeholder is emitted verbatim here.
+  const greetingBlock =
+    settings.greeting_enabled && (settings.greeting_text || '').trim()
+      ? `<mj-text align="center" color="${text}" font-size="16px" font-weight="600" letter-spacing="-0.01em" padding="22px 16px 0 16px">${esc(settings.greeting_text)}</mj-text>`
+      : '';
+
+  // Brand accent gradient bar — solid accent set first for Outlook fallback.
+  const accentBar = `<mj-raw>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center">
+      <div style="width:56px; height:3px; border-radius:3px; background:${accent}; background:linear-gradient(90deg, ${accent}, ${accentLight});">&nbsp;</div>
+    </td></tr></table>
+  </mj-raw>`;
 
   const headerSection = `
     <mj-section background-color="${bg}" padding="44px 32px 0 32px">
       <mj-column>
         <mj-text align="center" color="${accent}" font-size="10.5px" letter-spacing="2.5px" font-weight="700" text-transform="uppercase" padding="0 0 24px 0">${esc(generatedDate)}</mj-text>
         ${logoBlock}
+        ${greetingBlock}
         ${
           headerHtml
             ? `<mj-text align="center" color="${muted}" font-size="14px" line-height="1.6" padding="20px 16px 0 16px">${headerHtml}</mj-text>`
@@ -120,9 +187,9 @@ export function buildMjml(data: TemplateData): string {
         }
       </mj-column>
     </mj-section>
-    <mj-section background-color="${bg}" padding="36px 32px 0 32px">
+    <mj-section background-color="${bg}" padding="32px 32px 0 32px">
       <mj-column>
-        <mj-divider border-color="${divider}" border-width="1px" padding="0" />
+        ${accentBar}
       </mj-column>
     </mj-section>
   `;
@@ -158,6 +225,43 @@ export function buildMjml(data: TemplateData): string {
     `
     : '';
 
+  // "Request a movie or show" CTA (Overseerr / Jellyseerr). Rendered just above
+  // the footer, so it sits at the natural call-to-action spot.
+  const requestSection =
+    settings.request_enabled && (settings.request_url || '').trim()
+      ? `<mj-section background-color="${bg}" padding="44px 32px 0 32px">
+           <mj-column>
+             <mj-button href="${esc(settings.request_url)}" background-color="${accent}" color="#0a0a0c" font-size="14px" font-weight="700" inner-padding="13px 28px" border-radius="6px" align="center">${esc(settings.request_label || 'Request a movie or show')}</mj-button>
+           </mj-column>
+         </mj-section>`
+      : '';
+
+  // Reorderable body sections, keyed for the drag-to-reorder UI.
+  const sectionHtml: Record<string, string> = {
+    stats: statsSection,
+    top_movies: topMoviesSection,
+    top_tv: topTVSection,
+    top_users: topUsersSection,
+    recent_movies: movieSections,
+    recent_tv: showSections,
+    recent_music: musicSections,
+    upcoming_movies: upcomingMoviesSection,
+    upcoming_shows: upcomingShowsSection
+  };
+  const order = resolveSectionOrder(settings.section_order);
+  const recentKeys = new Set(['recent_movies', 'recent_tv', 'recent_music']);
+  const orderedBody: string[] = [];
+  let emptyStatePlaced = false;
+  for (const key of order) {
+    // The "nothing new" message takes the slot of the first recent section.
+    if (!emptyStatePlaced && nothingNew && recentKeys.has(key)) {
+      orderedBody.push(emptyState);
+      emptyStatePlaced = true;
+    }
+    orderedBody.push(sectionHtml[key] || '');
+  }
+  const bodySections = orderedBody.join('\n');
+
   const unsubscribeLink = includeUnsubscribe
     ? `<mj-text align="center" color="${muted}" font-size="11px" padding="6px 0 0 0">
          <a href="${UNSUBSCRIBE_PLACEHOLDER}" style="color:${muted}; text-decoration:underline;">Unsubscribe</a>
@@ -167,7 +271,7 @@ export function buildMjml(data: TemplateData): string {
   const footerSection = `
     <mj-section background-color="${bg}" padding="48px 32px 32px 32px">
       <mj-column>
-        <mj-divider border-color="${divider}" border-width="1px" padding="0 0 24px 0" />
+        <mj-divider border-color="${COLORS.divider}" border-width="1px" padding="0 0 24px 0" />
         ${
           footerHtml
             ? `<mj-text align="center" color="${muted}" font-size="12px" line-height="1.7">${footerHtml}</mj-text>`
@@ -200,6 +304,15 @@ export function buildMjml(data: TemplateData): string {
       }
       .stat-number { font-variant-numeric: tabular-nums; }
       .stat-rank { font-variant-numeric: tabular-nums; }
+      .poster img {
+        border-radius: 6px !important;
+        box-shadow: 0 3px 12px rgba(0,0,0,0.45);
+        transition: box-shadow 0.2s ease, transform 0.2s ease;
+      }
+      .poster img:hover {
+        box-shadow: 0 8px 22px rgba(0,0,0,0.6);
+        transform: translateY(-2px);
+      }
       @media only screen and (max-width:480px) {
         .item-poster img { width: 80px !important; max-width: 80px !important; }
         .item-poster { padding-right: 14px !important; }
@@ -209,30 +322,22 @@ export function buildMjml(data: TemplateData): string {
   </mj-head>
   <mj-body background-color="${bg}" width="640px">
     ${headerSection}
-    ${statsSection}
-    ${topMoviesSection}
-    ${topTVSection}
-    ${topUsersSection}
-    ${emptyState}
-    ${movieSections}
-    ${showSections}
-    ${musicSections}
-    ${upcomingMoviesSection}
-    ${upcomingShowsSection}
+    ${bodySections}
+    ${requestSection}
     ${footerSection}
   </mj-body>
 </mjml>`;
 }
 
 function sectionHeader(title: string, count: number, accent: string): string {
-  const { muted, divider } = COLORS;
+  const { muted } = COLORS;
   return `
     <mj-section background-color="${COLORS.bg}" padding="40px 32px 0 32px">
       <mj-column>
         <mj-text font-size="10.5px" letter-spacing="2.5px" font-weight="700" text-transform="uppercase" color="${muted}" padding="0 0 14px 0">
           ${esc(title)} <span style="color:${accent};">·</span> ${count}
         </mj-text>
-        <mj-divider border-color="${divider}" border-width="1px" padding="0" />
+        ${accentRule(accent)}
       </mj-column>
     </mj-section>
   `;
@@ -246,13 +351,15 @@ function itemRow(opts: {
   posterSrc?: string;
   isLast?: boolean;
   posterDisplayPx?: number;
+  metaParts?: string[];
+  accent?: string;
 }): string {
   const { text, textSoft, muted, divider } = COLORS;
-  const { title, subtitle, meta, summary, posterSrc, isLast, posterDisplayPx = 100 } = opts;
+  const { title, subtitle, meta, summary, posterSrc, isLast, posterDisplayPx = 100, metaParts, accent = '#e5a00d' } = opts;
 
   const posterCol = posterSrc
     ? `<mj-column width="${posterDisplayPx + 24}px" padding="0" vertical-align="top" css-class="item-poster">
-         <mj-image src="${esc(posterSrc)}" alt="${esc(title)}" width="${posterDisplayPx}px" padding="0" align="left" border-radius="4px" />
+         <mj-image src="${esc(posterSrc)}" alt="${esc(title)}" width="${posterDisplayPx}px" padding="0" align="left" border-radius="6px" css-class="poster" />
        </mj-column>`
     : '';
   const contentWidth = posterSrc ? `${640 - 64 - posterDisplayPx - 24}px` : '100%';
@@ -261,6 +368,12 @@ function itemRow(opts: {
     ? `<mj-text color="${muted}" font-size="11px" font-weight="600" letter-spacing="1.4px" text-transform="uppercase" padding="0 0 6px 0">${esc(subtitle)}</mj-text>`
     : '';
   const titleLine = `<mj-text color="${text}" font-size="17px" font-weight="700" line-height="1.3" letter-spacing="-0.01em" padding="0">${esc(title)}${meta ? ` <span style="color:${muted}; font-weight:500;">${esc(meta)}</span>` : ''}</mj-text>`;
+  const metaLine =
+    metaParts && metaParts.length > 0
+      ? `<mj-text color="${muted}" font-size="12px" font-weight="500" letter-spacing="0.2px" padding="7px 0 0 0">${metaParts
+          .map((p) => esc(p))
+          .join(` <span style="color:${accent};">·</span> `)}</mj-text>`
+      : '';
   const summaryLine = summary
     ? `<mj-text color="${textSoft}" font-size="13.5px" line-height="1.6" padding="8px 0 0 0">${esc(shortSummary(summary, 110))}</mj-text>`
     : '';
@@ -279,6 +392,7 @@ function itemRow(opts: {
       <mj-column width="${contentWidth}" padding="0" vertical-align="top">
         ${subtitleLine}
         ${titleLine}
+        ${metaLine}
         ${summaryLine}
       </mj-column>
     </mj-section>
@@ -296,6 +410,8 @@ function renderItemList(heading: string, items: RenderedItem[], accent: string, 
         subtitle: item.subtitle,
         summary: opts.showSummaries ? item.summary : undefined,
         posterSrc: item.posterSrc,
+        metaParts: item.metaParts,
+        accent,
         isLast: i === items.length - 1
       })
     );
@@ -330,7 +446,7 @@ function renderShows(shows: RenderedShow[], accent: string): string {
 
     const posterCol = show.posterSrc
       ? `<mj-column width="124px" padding="0" vertical-align="top" css-class="item-poster">
-           <mj-image src="${esc(show.posterSrc)}" alt="${esc(show.title)}" width="100px" padding="0" align="left" border-radius="4px" />
+           <mj-image src="${esc(show.posterSrc)}" alt="${esc(show.title)}" width="100px" padding="0" align="left" border-radius="6px" css-class="poster" />
          </mj-column>`
       : '';
     const contentWidth = show.posterSrc ? '452px' : '100%';
@@ -376,7 +492,7 @@ function renderStatBlock(title: string, rows: RenderedStatRow[], accent: string)
                 <td width="32" style="color:${muted}; font-size:13px; font-weight:600; vertical-align:middle; width:32px; font-variant-numeric:tabular-nums;">${i + 1}</td>
                 ${
                   r.posterSrc
-                    ? `<td width="44" style="vertical-align:middle; width:44px; padding-right:12px;"><img src="${esc(r.posterSrc)}" width="36" height="36" style="border-radius:4px; object-fit:cover; display:block; width:36px; height:36px;" alt="" /></td>`
+                    ? `<td width="44" style="vertical-align:middle; width:44px; padding-right:12px;"><img src="${esc(r.posterSrc)}" width="36" height="36" style="border-radius:6px; object-fit:cover; display:block; width:36px; height:36px; box-shadow:0 2px 6px rgba(0,0,0,0.4);" alt="" /></td>`
                     : ''
                 }
                 <td style="vertical-align:middle;">
@@ -412,7 +528,7 @@ function renderStats(stats: { totalPlays: number; totalDuration: string; windowD
         <mj-text font-size="10.5px" letter-spacing="2.5px" font-weight="700" text-transform="uppercase" color="${muted}" padding="0 0 14px 0">
           Last ${stats.windowDays} Days
         </mj-text>
-        <mj-divider border-color="${divider}" border-width="1px" padding="0" />
+        ${accentRule(accent)}
       </mj-column>
     </mj-section>
     <mj-section background-color="${COLORS.bg}" padding="22px 32px 0 32px">
@@ -429,14 +545,14 @@ function renderStats(stats: { totalPlays: number; totalDuration: string; windowD
 }
 
 function upcomingHeader(title: string, count: number, accent: string, windowDays: number): string {
-  const { muted, divider } = COLORS;
+  const { muted } = COLORS;
   return `
     <mj-section background-color="${COLORS.bg}" padding="40px 32px 0 32px">
       <mj-column>
         <mj-text font-size="10.5px" letter-spacing="2.5px" font-weight="700" text-transform="uppercase" color="${muted}" padding="0 0 14px 0">
           ${esc(title)} <span style="color:${accent};">·</span> ${count} <span style="color:${muted}; font-weight:500; letter-spacing:1.2px;">· next ${windowDays} days</span>
         </mj-text>
-        <mj-divider border-color="${divider}" border-width="1px" padding="0" />
+        ${accentRule(accent)}
       </mj-column>
     </mj-section>
   `;
@@ -455,7 +571,7 @@ function renderUpcomingMovies(
     const isLast = i === items.length - 1;
     const posterCol = item.posterSrc
       ? `<mj-column width="124px" padding="0" vertical-align="top" css-class="item-poster">
-           <mj-image src="${esc(item.posterSrc)}" alt="${esc(item.title)}" width="100px" padding="0" align="left" border-radius="4px" />
+           <mj-image src="${esc(item.posterSrc)}" alt="${esc(item.title)}" width="100px" padding="0" align="left" border-radius="6px" css-class="poster" />
          </mj-column>`
       : '';
     const contentWidth = item.posterSrc ? '452px' : '100%';
@@ -521,7 +637,7 @@ function renderUpcomingShows(shows: RenderedUpcomingShow[], accent: string, wind
 
     const posterCol = show.posterSrc
       ? `<mj-column width="124px" padding="0" vertical-align="top" css-class="item-poster">
-           <mj-image src="${esc(show.posterSrc)}" alt="${esc(show.title)}" width="100px" padding="0" align="left" border-radius="4px" />
+           <mj-image src="${esc(show.posterSrc)}" alt="${esc(show.title)}" width="100px" padding="0" align="left" border-radius="6px" css-class="poster" />
          </mj-column>`
       : '';
     const contentWidth = show.posterSrc ? '452px' : '100%';

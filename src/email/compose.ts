@@ -194,7 +194,8 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
         title: m.title,
         year: m.year ? String(m.year) : undefined,
         summary: settings.show_summaries ? m.summary : undefined,
-        posterSrc
+        posterSrc,
+        metaParts: buildItemMeta(m)
       });
     }
   }
@@ -396,6 +397,46 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
 
 function pad2(n: number): string {
   return n < 10 ? `0${n}` : String(n);
+}
+
+/**
+ * Build the small metadata chips shown under a movie title — rating, runtime,
+ * content rating, and resolution — from whatever fields Tautulli returned.
+ * Anything missing is simply skipped, so the line gracefully shrinks.
+ */
+function buildItemMeta(m: RecentlyAddedItem): string[] | undefined {
+  const parts: string[] = [];
+  const rating = (m.rating || '').toString().trim();
+  if (rating && Number(rating) > 0) parts.push(`★ ${rating}`);
+  const runtime = formatRuntimeMs(m.duration);
+  if (runtime) parts.push(runtime);
+  const contentRating = (m.content_rating || '').trim();
+  if (contentRating) parts.push(contentRating);
+  const res = normalizeResolution(m.video_resolution);
+  if (res) parts.push(res);
+  return parts.length > 0 ? parts : undefined;
+}
+
+/** Tautulli reports media duration in milliseconds — render it as "2h 16m". */
+function formatRuntimeMs(raw: string | undefined): string {
+  const ms = Number(raw);
+  if (!Number.isFinite(ms) || ms < 60_000) return '';
+  const totalMin = Math.round(ms / 60_000);
+  const h = Math.floor(totalMin / 60);
+  const min = totalMin % 60;
+  if (h && min) return `${h}h ${min}m`;
+  if (h) return `${h}h`;
+  return `${min}m`;
+}
+
+/** Normalize Tautulli's resolution token ("1080", "4k", "sd") into a label. */
+function normalizeResolution(raw: string | undefined): string {
+  const r = (raw || '').toString().trim().toLowerCase();
+  if (!r) return '';
+  if (r === '4k' || r === '2160') return '4K';
+  if (r === 'sd') return 'SD';
+  if (/^\d+$/.test(r)) return `${r}p`;
+  return raw!.trim();
 }
 
 function formatShortDate(iso: string): string {

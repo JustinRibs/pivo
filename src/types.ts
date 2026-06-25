@@ -19,6 +19,20 @@ export interface Settings {
   brand_header_html: string;  // optional html shown under the logo
   brand_footer_html: string;  // optional html shown at the bottom
 
+  // Personalization — a per-recipient greeting line rendered in the header.
+  // greeting_text supports {{first_name}} / {{name}} placeholders.
+  greeting_enabled: number;   // 0/1
+  greeting_text: string;
+
+  // Request CTA — a "Request a movie or show" button (Overseerr / Jellyseerr).
+  request_enabled: number;    // 0/1
+  request_url: string;
+  request_label: string;
+
+  // Drag-to-reorder: JSON array of section keys controlling render order of the
+  // newsletter's body sections. Unknown/missing keys fall back to defaults.
+  section_order: string;
+
   // Content
   recently_added_count: number;
   include_movies: number;

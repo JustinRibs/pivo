@@ -12,7 +12,8 @@ const NUMERIC_FIELDS = new Set([
   'enable_top_watched', 'enable_top_users', 'enable_stats',
   'stats_window_days', 'schedule_enabled', 'cloudinary_enabled',
   'radarr_enabled', 'sonarr_enabled', 'upcoming_window_days',
-  'enable_upcoming', 'upcoming_replaces_recent'
+  'enable_upcoming', 'upcoming_replaces_recent',
+  'greeting_enabled', 'request_enabled'
 ]);
 
 const BOOL_FIELDS = new Set([
@@ -20,8 +21,27 @@ const BOOL_FIELDS = new Set([
   'show_summaries', 'enable_top_watched', 'enable_top_users',
   'enable_stats', 'schedule_enabled', 'cloudinary_enabled',
   'radarr_enabled', 'sonarr_enabled',
-  'enable_upcoming', 'upcoming_replaces_recent'
+  'enable_upcoming', 'upcoming_replaces_recent',
+  'greeting_enabled', 'request_enabled'
 ]);
+
+// Labels + canonical order for the drag-to-reorder section list.
+const SECTION_LABELS = {
+  stats: 'Watch stats',
+  top_movies: 'Most watched movies',
+  top_tv: 'Most watched TV',
+  top_users: 'Top viewers',
+  recent_movies: 'New movies',
+  recent_tv: 'New TV',
+  recent_music: 'New music',
+  upcoming_movies: 'Coming soon · Movies',
+  upcoming_shows: 'Coming soon · TV'
+};
+const DEFAULT_SECTION_ORDER = [
+  'stats', 'top_movies', 'top_tv', 'top_users',
+  'recent_movies', 'recent_tv', 'recent_music',
+  'upcoming_movies', 'upcoming_shows'
+];
 
 async function api(path, opts = {}) {
   const res = await fetch(path, {
@@ -57,6 +77,8 @@ function applySettings(s) {
     el.value = String(s[el.dataset.fieldPair] || '#e5a00d');
   }
   $('#tz-name').textContent = window.__TZ__ || 'TZ';
+
+  renderSectionOrder(parseSectionOrder(s.section_order));
 
   // Logo preview
   const logoPreview = $('#logo-preview');
@@ -275,6 +297,93 @@ async function saveChanges() {
   } catch (err) {
     $('#save-status').textContent = `Save failed: ${err.message}`;
     $('#save-status').className = 'hint error';
+  }
+}
+
+// --- Section order (drag-to-reorder) ----------------------------------------
+
+function parseSectionOrder(raw) {
+  let order = [];
+  try {
+    const parsed = JSON.parse(raw || '[]');
+    if (Array.isArray(parsed)) order = parsed.filter((k) => k in SECTION_LABELS);
+  } catch {}
+  for (const k of DEFAULT_SECTION_ORDER) if (!order.includes(k)) order.push(k);
+  return order;
+}
+
+function currentSectionOrder() {
+  return $$('#section-order-list li').map((li) => li.dataset.section);
+}
+
+function refreshOrderIndices() {
+  $$('#section-order-list li').forEach((li, i) => {
+    const idx = li.querySelector('.order-index');
+    if (idx) idx.textContent = i + 1;
+  });
+}
+
+function renderSectionOrder(order) {
+  const list = $('#section-order-list');
+  if (!list) return;
+  list.innerHTML = '';
+  order.forEach((key, i) => {
+    const li = document.createElement('li');
+    li.draggable = true;
+    li.dataset.section = key;
+    li.innerHTML = `
+      <span class="drag-handle" aria-hidden="true">⠿</span>
+      <span class="order-index">${i + 1}</span>
+      <span class="order-label">${escapeHtml(SECTION_LABELS[key] || key)}</span>
+    `;
+    list.appendChild(li);
+  });
+}
+
+function bindSectionOrder() {
+  const list = $('#section-order-list');
+  if (!list) return;
+  let dragEl = null;
+
+  list.addEventListener('dragstart', (e) => {
+    const li = e.target.closest('li');
+    if (!li) return;
+    dragEl = li;
+    li.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+  });
+
+  list.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    const li = e.target.closest('li');
+    if (!li || li === dragEl) return;
+    $$('#section-order-list li').forEach((n) => n.classList.toggle('over', n === li));
+    const rect = li.getBoundingClientRect();
+    const after = e.clientY > rect.top + rect.height / 2;
+    list.insertBefore(dragEl, after ? li.nextSibling : li);
+  });
+
+  list.addEventListener('dragend', () => {
+    if (!dragEl) return;
+    dragEl.classList.remove('dragging');
+    $$('#section-order-list li').forEach((n) => n.classList.remove('over'));
+    dragEl = null;
+    refreshOrderIndices();
+    markDirty('section_order', JSON.stringify(currentSectionOrder()));
+  });
+}
+
+// --- Device preview toggle (desktop / mobile width) -------------------------
+
+function bindDeviceToggles() {
+  for (const group of $$('.device-toggle')) {
+    const frame = group.dataset.preview === 'bc' ? $('#bc-preview-frame') : $('#preview-frame');
+    group.addEventListener('click', (e) => {
+      const btn = e.target.closest('.device-btn');
+      if (!btn || !frame) return;
+      $$('.device-btn', group).forEach((b) => b.classList.toggle('active', b === btn));
+      frame.classList.toggle('mobile', btn.dataset.device === 'mobile');
+    });
   }
 }
 
@@ -714,6 +823,8 @@ function bindBroadcastActions() {
   bindFieldHandlers();
   bindActions();
   bindBroadcastActions();
+  bindSectionOrder();
+  bindDeviceToggles();
   try {
     const s = await api('/api/settings');
     applySettings(s);

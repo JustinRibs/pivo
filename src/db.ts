@@ -86,6 +86,19 @@ const DEFAULTS: Settings = {
   brand_header_html: 'Here’s what’s new this week.',
   brand_footer_html: 'You’re receiving this because you have access to my Plex server.',
 
+  greeting_enabled: 0,
+  greeting_text: 'Welcome back, {{first_name}}',
+
+  request_enabled: 0,
+  request_url: '',
+  request_label: 'Request a movie or show',
+
+  section_order: JSON.stringify([
+    'stats', 'top_movies', 'top_tv', 'top_users',
+    'recent_movies', 'recent_tv', 'recent_music',
+    'upcoming_movies', 'upcoming_shows'
+  ]),
+
   recently_added_count: 8,
   include_movies: 1,
   include_tv: 1,
