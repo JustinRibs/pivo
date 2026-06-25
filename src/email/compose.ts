@@ -3,11 +3,12 @@ import path from 'node:path';
 import mjml2html from 'mjml';
 import { TautulliClient, formatDuration } from '../tautulli.js';
 import { RadarrClient, SonarrClient, fetchRemoteImage, type UpcomingEpisode } from '../arr.js';
+import { fetchUptimePercent } from '../uptime.js';
 import { UPLOADS_DIR } from '../config.js';
 import { lookupCloudinaryUrl } from '../db.js';
 import { buildPublicId, cloudinaryConfigFromSettings, uploadImageBuffer, type CloudinaryConfig } from '../cloudinary.js';
-import type { ComposedNewsletter, RecentlyAddedItem, Settings } from '../types.js';
-import { buildMjml, UNSUBSCRIBE_PLACEHOLDER, type RenderedItem, type RenderedShow, type RenderedStatRow, type RenderedUpcomingMovie, type RenderedUpcomingShow, type TemplateData } from './template.js';
+import type { ComposedNewsletter, HistoryRow, RecentlyAddedItem, Settings, UsersTableRow } from '../types.js';
+import { buildMjml, UNSUBSCRIBE_PLACEHOLDER, type FlexStats, type RenderedItem, type RenderedShow, type RenderedStatRow, type RenderedUpcomingMovie, type RenderedUpcomingShow, type Superlative, type TemplateData } from './template.js';
 
 interface Attachment {
   filename: string;
@@ -312,18 +313,53 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
     }
   }
 
-  if (settings.enable_stats) {
+  // Fun stat needs the watch-time total too, so fetch totals when either is on.
+  let totalWatchSec = 0;
+  if (settings.enable_stats || settings.enable_fun_stats) {
     try {
       const totals = await tautulli.getHistoryTotals(settings.stats_window_days);
-      stats = {
-        totalPlays: totals.totalPlays,
-        totalDuration: formatDuration(totals.totalDurationSec),
-        windowDays: settings.stats_window_days
-      };
+      totalWatchSec = totals.totalDurationSec;
+      if (settings.enable_stats) {
+        stats = {
+          totalPlays: totals.totalPlays,
+          totalDuration: formatDuration(totals.totalDurationSec),
+          windowDays: settings.stats_window_days
+        };
+      }
     } catch (err) {
       console.warn('Failed to load stats totals:', err);
     }
   }
+
+  // --- "Server Wrapped" superlatives ----------------------------------------
+  let superlatives: Superlative[] | undefined;
+  if (settings.enable_superlatives) {
+    try {
+      const [rows, usersTable] = await Promise.all([
+        tautulli.getHistory({ afterDays: settings.stats_window_days, length: 2000 }),
+        tautulli.getUsersTable()
+      ]);
+      const awards = computeSuperlatives(rows, usersTable);
+      if (awards.length > 0) superlatives = awards;
+    } catch (err) {
+      console.warn('Failed to compute superlatives:', err);
+    }
+  }
+
+  // --- Homelab flex bar ------------------------------------------------------
+  let flex: FlexStats | undefined;
+  if (settings.enable_flex_bar) {
+    try {
+      flex = await computeFlexStats(tautulli, settings);
+    } catch (err) {
+      console.warn('Failed to compute flex bar:', err);
+    }
+  }
+
+  // --- Seasonal theme + fun stat --------------------------------------------
+  const now = new Date();
+  const season = settings.seasonal_theme_enabled ? seasonalTheme(now) : null;
+  const funStat = settings.enable_fun_stats && totalWatchSec > 0 ? funStatCaption(totalWatchSec, now) : undefined;
 
   // Optional logo. Hosted on Cloudinary when configured, otherwise CID-attached.
   let logoSrc: string | undefined;
@@ -374,6 +410,11 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
     upcomingMovies,
     upcomingShows,
     upcomingWindowDays,
+    superlatives,
+    flex,
+    funStat,
+    accentOverride: season?.accent,
+    seasonalEmoji: season?.emoji,
     generatedDate,
     logoSrc,
     includeUnsubscribe
@@ -445,6 +486,222 @@ function formatShortDate(iso: string): string {
   return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
+// --- "Server Wrapped" superlatives ------------------------------------------
+
+function historyUserName(r: HistoryRow): string {
+  return (r.friendly_name || r.user || (r.user_id ? `User ${r.user_id}` : 'Someone')).trim();
+}
+
+/**
+ * Derive playful awards from recent watch history + the users table. Each award
+ * is only included when there's a genuine winner, so a quiet week simply yields
+ * fewer cards rather than empty ones.
+ */
+function computeSuperlatives(rows: HistoryRow[], usersTable: UsersTableRow[]): Superlative[] {
+  const awards: Superlative[] = [];
+  const tsOf = (r: HistoryRow) => Number(r.started || r.date || 0);
+
+  // 🦉 Night Owl — most plays started between midnight and 5am (container TZ).
+  const lateByUser = new Map<string, number>();
+  for (const r of rows) {
+    const ts = tsOf(r);
+    if (!ts) continue;
+    const h = new Date(ts * 1000).getHours();
+    if (h >= 0 && h < 5) {
+      const k = historyUserName(r);
+      lateByUser.set(k, (lateByUser.get(k) || 0) + 1);
+    }
+  }
+  const nightOwl = topEntry(lateByUser);
+  if (nightOwl && nightOwl[1] > 0) {
+    awards.push({ emoji: '🦉', title: 'Night Owl', name: nightOwl[0], detail: `${nightOwl[1]} late-night play${nightOwl[1] === 1 ? '' : 's'}` });
+  }
+
+  // 🍿 Biggest Binger — most watch time over the window.
+  const secByUser = new Map<string, number>();
+  for (const r of rows) {
+    const sec = Number(r.duration || 0);
+    if (sec > 0) {
+      const k = historyUserName(r);
+      secByUser.set(k, (secByUser.get(k) || 0) + sec);
+    }
+  }
+  const binger = topEntry(secByUser);
+  if (binger && binger[1] >= 1800) {
+    awards.push({ emoji: '🍿', title: 'Biggest Binger', name: binger[0], detail: `${formatDuration(binger[1])} watched` });
+  }
+
+  // 🔁 Broken Record — the single most-replayed title.
+  const playsByTitle = new Map<string, number>();
+  for (const r of rows) {
+    const key = (r.grandparent_title || r.full_title || r.title || '').trim();
+    if (key) playsByTitle.set(key, (playsByTitle.get(key) || 0) + 1);
+  }
+  const replayed = topEntry(playsByTitle);
+  if (replayed && replayed[1] >= 2) {
+    awards.push({ emoji: '🔁', title: 'Broken Record', name: replayed[0], detail: `${replayed[1]} plays` });
+  }
+
+  // ⚡ Speed Demon — most episodes of one series, fastest. (Approximate "finished
+  // a series fastest" as the highest episodes-per-day binge of a single show.)
+  const binge = new Map<string, { user: string; show: string; count: number; min: number; max: number }>();
+  for (const r of rows) {
+    if (r.media_type !== 'episode') continue;
+    const show = (r.grandparent_title || '').trim();
+    if (!show) continue;
+    const ts = tsOf(r);
+    if (!ts) continue;
+    const user = historyUserName(r);
+    const key = `${user}|||${show}`;
+    const e = binge.get(key);
+    if (e) {
+      e.count += 1;
+      e.min = Math.min(e.min, ts);
+      e.max = Math.max(e.max, ts);
+    } else {
+      binge.set(key, { user, show, count: 1, min: ts, max: ts });
+    }
+  }
+  let speed: { user: string; show: string; count: number; spanDays: number; rate: number } | null = null;
+  for (const e of binge.values()) {
+    if (e.count < 3) continue;
+    const spanDays = Math.max((e.max - e.min) / 86400, 0.5);
+    const rate = e.count / spanDays;
+    if (!speed || rate > speed.rate || (rate === speed.rate && e.count > speed.count)) {
+      speed = { user: e.user, show: e.show, count: e.count, spanDays, rate };
+    }
+  }
+  if (speed) {
+    const span = speed.spanDays < 1 ? 'a single day' : `${Math.round(speed.spanDays)} day${Math.round(speed.spanDays) === 1 ? '' : 's'}`;
+    awards.push({ emoji: '⚡', title: 'Speed Demon', name: speed.user, detail: `${speed.count} episodes of ${speed.show} in ${span}` });
+  }
+
+  // 👻 Ghost — the most-active user who's gone quiet for 30+ days.
+  const nowSec = Date.now() / 1000;
+  let ghost: { name: string; plays: number; days: number } | null = null;
+  for (const u of usersTable) {
+    const plays = Number(u.plays || 0);
+    const lastSeen = Number(u.last_seen || 0);
+    if (plays <= 0 || !lastSeen) continue;
+    const days = (nowSec - lastSeen) / 86400;
+    if (days < 30) continue;
+    if (!ghost || plays > ghost.plays) {
+      ghost = { name: (u.friendly_name || u.user || `User ${u.user_id}`).trim(), plays, days };
+    }
+  }
+  if (ghost) {
+    awards.push({ emoji: '👻', title: 'Ghost', name: ghost.name, detail: `we miss you — last seen ${Math.round(ghost.days)} days ago` });
+  }
+
+  return awards;
+}
+
+function topEntry(m: Map<string, number>): [string, number] | null {
+  let best: [string, number] | null = null;
+  for (const e of m.entries()) if (!best || e[1] > best[1]) best = e;
+  return best;
+}
+
+// --- Homelab flex bar -------------------------------------------------------
+
+async function computeFlexStats(tautulli: TautulliClient, settings: Settings): Promise<FlexStats> {
+  const flex: FlexStats = {};
+  const libs = await tautulli.getLibraries();
+
+  let movies = 0;
+  let shows = 0;
+  let episodes = 0;
+  let hasMovie = false;
+  let hasShow = false;
+  const sizeSections: (string | number)[] = [];
+  for (const lib of libs) {
+    const type = (lib.section_type || '').toLowerCase();
+    if (type === 'movie') {
+      hasMovie = true;
+      movies += Number(lib.count || 0);
+      sizeSections.push(lib.section_id);
+    } else if (type === 'show') {
+      hasShow = true;
+      shows += Number(lib.count || 0);
+      episodes += Number(lib.child_count || 0);
+      sizeSections.push(lib.section_id);
+    }
+  }
+  if (hasMovie) flex.movies = movies;
+  if (hasShow) {
+    flex.shows = shows;
+    if (episodes > 0) flex.episodes = episodes;
+  }
+
+  // Storage — best-effort sum of file sizes across the main libraries.
+  try {
+    let totalBytes = 0;
+    for (const id of sizeSections) {
+      totalBytes += await tautulli.getLibraryMediaInfo(id);
+    }
+    if (totalBytes > 0) {
+      const tb = totalBytes / 1024 ** 4;
+      flex.storageTb = Math.round(tb * 10) / 10;
+    }
+  } catch (err) {
+    console.warn('Flex bar: storage lookup failed:', err);
+  }
+
+  // Items added during the stats window.
+  try {
+    const recent = await tautulli.getRecentlyAdded(100);
+    const cutoff = Date.now() / 1000 - settings.stats_window_days * 86400;
+    const added = recent.filter((i) => Number(i.added_at || 0) >= cutoff).length;
+    if (added > 0) flex.addedThisPeriod = added;
+  } catch (err) {
+    console.warn('Flex bar: recently-added count failed:', err);
+  }
+
+  // Uptime badge.
+  if (settings.uptime_enabled && settings.uptime_kuma_url && settings.uptime_kuma_slug) {
+    const pct = await fetchUptimePercent(settings.uptime_kuma_url, settings.uptime_kuma_slug);
+    if (pct != null) flex.uptimePct = pct;
+  }
+
+  return flex;
+}
+
+// --- Seasonal theming -------------------------------------------------------
+
+/** Map the current date to a festive accent + emoji, or null for "no season". */
+function seasonalTheme(now: Date): { accent: string; emoji: string } | null {
+  const m = now.getMonth() + 1;
+  const d = now.getDate();
+  if (m === 10) return { accent: '#ff7518', emoji: '🎃' };                 // Halloween (all October)
+  if (m === 12 && d <= 26) return { accent: '#e5484d', emoji: '🎄' };       // Winter holidays
+  if ((m === 12 && d >= 29) || (m === 1 && d <= 2)) return { accent: '#f5c518', emoji: '🎉' }; // New Year
+  if (m === 2 && d <= 14) return { accent: '#ff5d8f', emoji: '💘' };        // Valentine's
+  if (m === 3 && d >= 14 && d <= 17) return { accent: '#2eb872', emoji: '☘️' }; // St. Patrick's
+  if (m >= 6 && m <= 8) return { accent: '#ff9f1c', emoji: '☀️' };          // Summer
+  return null;
+}
+
+// --- Absurd unit conversions ------------------------------------------------
+
+function funStatCaption(totalSec: number, now: Date): string {
+  const hours = totalSec / 3600;
+  const round = (n: number, dp = 0) => {
+    const f = 10 ** dp;
+    return (Math.round(n * f) / f).toLocaleString();
+  };
+  const options: string[] = [
+    `that's the ISS lapping the planet ${round(hours / 1.533)} times`,
+    `enough for ${round(hours / 11.4)} back-to-back marathons of the extended Lord of the Rings trilogy`,
+    `roughly ${round(hours / 14)} flights from New York to Tokyo`,
+    `a three-toed sloth could've ambled ${round(hours * 0.17, 1)} miles in that time`,
+    `about ${round(hours / 3.2)} full screenings of Titanic`,
+    `${round(hours * 60 / 90)} sunrises as seen from the Space Station`
+  ];
+  // Day-of-year keeps it deterministic per send but rotates over time.
+  const dayOfYear = Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86400_000);
+  return options[dayOfYear % options.length];
+}
+
 function releaseLabel(t: 'digital' | 'physical' | 'cinemas'): string {
   if (t === 'digital') return 'Digital';
   if (t === 'physical') return 'Physical';
@@ -466,8 +723,27 @@ function buildPlainText(d: TemplateData): string {
   lines.push(d.settings.brand_name);
   lines.push(d.generatedDate);
   lines.push('');
+  if (d.flex && (d.flex.movies != null || d.flex.shows != null || d.flex.storageTb != null || d.flex.addedThisPeriod != null || d.flex.uptimePct != null)) {
+    const parts: string[] = [];
+    if (d.flex.movies != null) parts.push(`${d.flex.movies} movies`);
+    if (d.flex.shows != null) parts.push(`${d.flex.shows} shows`);
+    if (d.flex.storageTb != null) parts.push(`${d.flex.storageTb} TB`);
+    if (d.flex.addedThisPeriod != null) parts.push(`+${d.flex.addedThisPeriod} added`);
+    if (d.flex.uptimePct != null) parts.push(`${d.flex.uptimePct}% uptime`);
+    lines.push(`STATE OF THE SERVER: ${parts.join(' · ')}`);
+    lines.push('');
+  }
   if (d.stats) {
     lines.push(`Last ${d.stats.windowDays} days: ${d.stats.totalPlays} plays, ${d.stats.totalDuration} watched.`);
+    lines.push('');
+  }
+  if (d.funStat) {
+    lines.push(`✦ ${d.funStat}`);
+    lines.push('');
+  }
+  if (d.superlatives?.length) {
+    lines.push('SERVER WRAPPED');
+    for (const s of d.superlatives) lines.push(`${s.emoji} ${s.title}: ${s.name} — ${s.detail}`);
     lines.push('');
   }
   if (d.topMovies?.length) {

@@ -28,6 +28,7 @@
           <a href="#section-images" class="nav-link" data-target="section-images">Image hosting</a>
           <a href="#section-smtp" class="nav-link" data-target="section-smtp">Email (SMTP)</a>
           <a href="#section-content" class="nav-link" data-target="section-content">Content</a>
+          <a href="#section-fun" class="nav-link" data-target="section-fun">Fun &amp; stats</a>
           <a href="#section-schedule" class="nav-link" data-target="section-schedule">Schedule</a>
           <a href="#section-recipients" class="nav-link" data-target="section-recipients">Recipients</a>
           <a href="#section-preview" class="nav-link" data-target="section-preview">Preview &amp; Send</a>
@@ -355,6 +356,60 @@
           <h3>Section order</h3>
           <p class="hint">Drag to reorder how sections appear in the newsletter. Disabled or empty sections are simply skipped.</p>
           <ul id="section-order-list" class="section-order" aria-label="Newsletter section order"></ul>
+        </section>
+
+        <section id="section-fun" class="card">
+          <h2>Fun &amp; stats</h2>
+          <p class="hint">Playful, data-driven sections that give the newsletter personality. Each one quietly hides itself when there's no data to show.</p>
+
+          <div class="row">
+            <label class="checkbox">
+              <input data-field="enable_flex_bar" type="checkbox" />
+              <span>State-of-the-server bar (library counts, storage, uptime)</span>
+            </label>
+            <label class="checkbox">
+              <input data-field="enable_superlatives" type="checkbox" />
+              <span>Server Wrapped awards (Night Owl, Biggest Binger, …)</span>
+            </label>
+          </div>
+          <div class="row">
+            <label class="checkbox">
+              <input data-field="enable_fun_stats" type="checkbox" />
+              <span>Absurd unit conversions under the watch-time stats</span>
+            </label>
+            <label class="checkbox">
+              <input data-field="seasonal_theme_enabled" type="checkbox" />
+              <span>Seasonal auto-theming (accent + emoji on holidays)</span>
+            </label>
+          </div>
+          <p class="hint">
+            The awards read your Tautulli watch history over the <strong>stats window</strong> set in the Content tab.
+            Seasonal theming temporarily overrides your accent color around Halloween, the winter holidays, Valentine's, and a few others.
+          </p>
+
+          <h3>Uptime badge</h3>
+          <div class="row">
+            <label class="checkbox">
+              <input data-field="uptime_enabled" type="checkbox" />
+              <span>Show an uptime % in the server bar</span>
+            </label>
+          </div>
+          <div class="row">
+            <label>Uptime monitor URL
+              <input data-field="uptime_kuma_url" type="url" placeholder="http://192.168.1.x:3001" />
+            </label>
+            <label>Status-page slug
+              <input data-field="uptime_kuma_slug" type="text" placeholder="default" />
+            </label>
+          </div>
+          <div class="actions">
+            <button class="btn" id="test-uptime-btn" type="button">Test uptime</button>
+            <span id="test-uptime-status" class="hint"></span>
+          </div>
+          <p class="hint">
+            Reads the aggregate uptime from a public status page on your uptime monitor (Uptime Kuma). The slug is the part of the
+            status-page URL after <code>/status/</code>. Recipients just see a friendly percentage — no jargon.
+          </p>
         </section>
 
         <section id="section-schedule" class="card">

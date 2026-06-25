@@ -13,6 +13,16 @@ export interface TemplateData {
   upcomingMovies?: RenderedUpcomingMovie[];
   upcomingShows?: RenderedUpcomingShow[];
   upcomingWindowDays?: number;
+  /** "Server Wrapped" award winners. */
+  superlatives?: Superlative[];
+  /** Homelab flex bar metrics. */
+  flex?: FlexStats;
+  /** Playful unit-conversion caption shown under the watch-time stats. */
+  funStat?: string;
+  /** Seasonal accent override (e.g. spooky orange in October). Falls back to brand_accent. */
+  accentOverride?: string;
+  /** Seasonal emoji shown in the date eyebrow. */
+  seasonalEmoji?: string;
   generatedDate: string;
   /**
    * Final `src=` value for the brand logo. Either a `cid:…` reference (when
@@ -28,7 +38,7 @@ export const UNSUBSCRIBE_PLACEHOLDER = '{{UNSUBSCRIBE_URL}}';
 
 /** Canonical order + the full set of reorderable body-section keys. */
 export const DEFAULT_SECTION_ORDER = [
-  'stats', 'top_movies', 'top_tv', 'top_users',
+  'flex_bar', 'stats', 'superlatives', 'top_movies', 'top_tv', 'top_users',
   'recent_movies', 'recent_tv', 'recent_music',
   'upcoming_movies', 'upcoming_shows'
 ] as const;
@@ -46,7 +56,11 @@ function resolveSectionOrder(raw: string | undefined): string[] {
     parsed = null;
   }
   const order = Array.isArray(parsed) ? parsed.filter((k): k is string => typeof k === 'string' && known.has(k)) : [];
-  for (const k of DEFAULT_SECTION_ORDER) if (!order.includes(k)) order.push(k);
+  // Insert any missing known keys at their canonical position (rather than the
+  // end), so sections added in an upgrade land where they were designed to sit.
+  DEFAULT_SECTION_ORDER.forEach((k, i) => {
+    if (!order.includes(k)) order.splice(Math.min(i, order.length), 0, k);
+  });
   return order;
 }
 
@@ -93,6 +107,25 @@ export interface RenderedUpcomingShow {
   title: string;
   posterSrc?: string;
   episodes: { label: string; title: string; dateLabel: string }[];
+}
+
+export interface Superlative {
+  emoji: string;
+  /** Award name, e.g. "Night Owl". */
+  title: string;
+  /** Winner — a user or a title. */
+  name: string;
+  /** Supporting detail, e.g. "23 late-night plays". */
+  detail: string;
+}
+
+export interface FlexStats {
+  movies?: number;
+  shows?: number;
+  episodes?: number;
+  storageTb?: number;
+  addedThisPeriod?: number;
+  uptimePct?: number | null;
 }
 
 const COLORS = {
@@ -147,8 +180,8 @@ function accentRule(accent: string): string {
 }
 
 export function buildMjml(data: TemplateData): string {
-  const { settings, movies, shows, music, topMovies, topTV, topUsers, stats, upcomingMovies, upcomingShows, upcomingWindowDays, generatedDate, logoSrc, includeUnsubscribe } = data;
-  const accent = settings.brand_accent || '#e5a00d';
+  const { settings, movies, shows, music, topMovies, topTV, topUsers, stats, upcomingMovies, upcomingShows, upcomingWindowDays, superlatives, flex, funStat, accentOverride, seasonalEmoji, generatedDate, logoSrc, includeUnsubscribe } = data;
+  const accent = accentOverride || settings.brand_accent || '#e5a00d';
   const accentLight = lightenHex(accent, 0.4);
   const brandName = esc(settings.brand_name || 'Pivo');
   const headerHtml = settings.brand_header_html || '';
@@ -177,7 +210,7 @@ export function buildMjml(data: TemplateData): string {
   const headerSection = `
     <mj-section background-color="${bg}" padding="44px 32px 0 32px">
       <mj-column>
-        <mj-text align="center" color="${accent}" font-size="10.5px" letter-spacing="2.5px" font-weight="700" text-transform="uppercase" padding="0 0 24px 0">${esc(generatedDate)}</mj-text>
+        <mj-text align="center" color="${accent}" font-size="10.5px" letter-spacing="2.5px" font-weight="700" text-transform="uppercase" padding="0 0 24px 0">${seasonalEmoji ? `${seasonalEmoji} ` : ''}${esc(generatedDate)}</mj-text>
         ${logoBlock}
         ${greetingBlock}
         ${
@@ -203,7 +236,12 @@ export function buildMjml(data: TemplateData): string {
   const topTVSection = topTV && topTV.length > 0 ? renderStatBlock('Most Watched TV', topTV, accent) : '';
   const topUsersSection =
     topUsers && topUsers.length > 0 ? renderStatBlock('Top Viewers', topUsers, accent) : '';
-  const statsSection = stats ? renderStats(stats, accent) : '';
+  // The fun caption travels with the stats slot (it riffs on the watch-time total).
+  const statsSection =
+    (stats ? renderStats(stats, accent) : '') + (funStat ? renderFunCaption(funStat, accent, !stats) : '');
+  const superlativesSection =
+    superlatives && superlatives.length > 0 ? renderSuperlatives(superlatives, accent) : '';
+  const flexBarSection = flex && hasFlexStats(flex) ? renderFlexBar(flex, accent) : '';
 
   const upcomingMoviesSection =
     upcomingMovies && upcomingMovies.length > 0
@@ -231,13 +269,15 @@ export function buildMjml(data: TemplateData): string {
     settings.request_enabled && (settings.request_url || '').trim()
       ? `<mj-section background-color="${bg}" padding="44px 32px 0 32px">
            <mj-column>
-             <mj-button href="${esc(settings.request_url)}" background-color="${accent}" color="#0a0a0c" font-size="14px" font-weight="700" inner-padding="13px 28px" border-radius="6px" align="center">${esc(settings.request_label || 'Request a movie or show')}</mj-button>
+             <mj-button href="${esc(settings.request_url)}" background-color="${accent}" color="#0a0a0c" font-size="14px" font-weight="700" inner-padding="13px 28px" border-radius="6px" align="center" css-class="request-btn">${esc(settings.request_label || 'Request a movie or show')}</mj-button>
            </mj-column>
          </mj-section>`
       : '';
 
   // Reorderable body sections, keyed for the drag-to-reorder UI.
   const sectionHtml: Record<string, string> = {
+    flex_bar: flexBarSection,
+    superlatives: superlativesSection,
     stats: statsSection,
     top_movies: topMoviesSection,
     top_tv: topTVSection,
@@ -295,6 +335,10 @@ export function buildMjml(data: TemplateData): string {
     </mj-attributes>
     <mj-style>
       a, a:visited { color: ${accent} !important; text-decoration: none; }
+      /* The button has a solid accent fill, so force readable dark text and
+         override the global accent link color (which would otherwise make the
+         label the same color as the fill). */
+      .request-btn a, .request-btn a:visited { color: #0a0a0c !important; text-decoration: none !important; }
       img { max-width: 100%; height: auto; display: block; }
       body, table, td, div, p, a, span, h1, h2, h3, h4 {
         font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
@@ -541,6 +585,100 @@ function renderStats(stats: { totalPlays: number; totalDuration: string; windowD
         <mj-text align="left" color="${muted}" font-size="11px" letter-spacing="2px" font-weight="700" text-transform="uppercase" padding="4px 0 0 0">Watched</mj-text>
       </mj-column>
     </mj-section>
+  `;
+}
+
+/** A playful one-liner under the watch-time stats. `standalone` wraps it in its
+ *  own padded section when the stats block itself isn't being rendered. */
+function renderFunCaption(caption: string, accent: string, standalone: boolean): string {
+  const { muted } = COLORS;
+  const pad = standalone ? '40px 32px 0 32px' : '16px 32px 0 32px';
+  return `
+    <mj-section background-color="${COLORS.bg}" padding="${pad}">
+      <mj-column>
+        <mj-text align="${standalone ? 'center' : 'left'}" color="${muted}" font-size="13px" font-style="italic" line-height="1.6" padding="0">
+          <span style="color:${accent};">✦</span> ${esc(caption)}
+        </mj-text>
+      </mj-column>
+    </mj-section>
+  `;
+}
+
+function hasFlexStats(f: FlexStats): boolean {
+  return (
+    f.movies != null || f.shows != null || f.storageTb != null ||
+    f.addedThisPeriod != null || (f.uptimePct != null)
+  );
+}
+
+/** Homelab "State of the Server" bar — a row of headline numbers. */
+function renderFlexBar(flex: FlexStats, accent: string): string {
+  const { text, muted } = COLORS;
+  const cells: { value: string; label: string }[] = [];
+  if (flex.movies != null) cells.push({ value: flex.movies.toLocaleString(), label: 'Movies' });
+  if (flex.shows != null) cells.push({ value: flex.shows.toLocaleString(), label: 'Shows' });
+  if (flex.storageTb != null) cells.push({ value: `${flex.storageTb} TB`, label: 'Library' });
+  if (flex.addedThisPeriod != null) cells.push({ value: `+${flex.addedThisPeriod.toLocaleString()}`, label: 'Added' });
+  if (flex.uptimePct != null) cells.push({ value: `${flex.uptimePct}%`, label: 'Uptime' });
+  if (cells.length === 0) return '';
+
+  const width = `${Math.floor(100 / cells.length)}%`;
+  const columns = cells
+    .map(
+      (c) => `
+      <mj-column padding="0" width="${width}">
+        <mj-text align="center" color="${accent}" font-size="26px" font-weight="700" letter-spacing="-0.02em" padding="0" css-class="stat-number">${esc(c.value)}</mj-text>
+        <mj-text align="center" color="${muted}" font-size="10px" letter-spacing="1.6px" font-weight="700" text-transform="uppercase" padding="6px 0 0 0">${esc(c.label)}</mj-text>
+      </mj-column>`
+    )
+    .join('');
+
+  return `
+    <mj-section background-color="${COLORS.bg}" padding="40px 32px 0 32px">
+      <mj-column>
+        <mj-text font-size="10.5px" letter-spacing="2.5px" font-weight="700" text-transform="uppercase" color="${muted}" padding="0 0 14px 0">State of the Server</mj-text>
+        ${accentRule(accent)}
+      </mj-column>
+    </mj-section>
+    <mj-section background-color="${COLORS.bg}" padding="22px 32px 0 32px">
+      ${columns}
+    </mj-section>
+  `;
+}
+
+/** "Server Wrapped" award cards, two per row. */
+function renderSuperlatives(items: Superlative[], accent: string): string {
+  const { text, textSoft, muted } = COLORS;
+  const card = (s: Superlative) => `
+    <mj-column padding="0 8px" width="50%" vertical-align="top">
+      <mj-text padding="0">
+        <span style="font-size:26px; line-height:1;">${s.emoji}</span>
+      </mj-text>
+      <mj-text color="${accent}" font-size="10.5px" font-weight="700" letter-spacing="1.6px" text-transform="uppercase" padding="8px 0 0 0">${esc(s.title)}</mj-text>
+      <mj-text color="${text}" font-size="16px" font-weight="700" letter-spacing="-0.01em" line-height="1.3" padding="4px 0 0 0">${esc(s.name)}</mj-text>
+      <mj-text color="${textSoft}" font-size="12.5px" line-height="1.5" padding="2px 0 0 0">${esc(s.detail)}</mj-text>
+    </mj-column>`;
+
+  const rows: string[] = [];
+  for (let i = 0; i < items.length; i += 2) {
+    const pair = items.slice(i, i + 2);
+    rows.push(`
+      <mj-section background-color="${COLORS.bg}" padding="22px 24px 0 24px">
+        ${pair.map(card).join('')}
+      </mj-section>
+    `);
+  }
+
+  return `
+    <mj-section background-color="${COLORS.bg}" padding="40px 32px 0 32px">
+      <mj-column>
+        <mj-text font-size="10.5px" letter-spacing="2.5px" font-weight="700" text-transform="uppercase" color="${muted}" padding="0 0 14px 0">
+          Server Wrapped <span style="color:${accent};">·</span> ${items.length} award${items.length === 1 ? '' : 's'}
+        </mj-text>
+        ${accentRule(accent)}
+      </mj-column>
+    </mj-section>
+    ${rows.join('')}
   `;
 }
 

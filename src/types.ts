@@ -33,6 +33,21 @@ export interface Settings {
   // newsletter's body sections. Unknown/missing keys fall back to defaults.
   section_order: string;
 
+  // "Server Wrapped" awards (Night Owl, Biggest Binger, etc.) from watch history.
+  enable_superlatives: number; // 0/1
+
+  // Homelab "flex bar" — library counts, storage, items added, uptime badge.
+  enable_flex_bar: number;     // 0/1
+  uptime_enabled: number;      // 0/1
+  uptime_kuma_url: string;     // base URL of an Uptime Kuma instance
+  uptime_kuma_slug: string;    // status-page slug to read uptime from
+
+  // Seasonal auto-theming — overrides the accent + adds an emoji around holidays.
+  seasonal_theme_enabled: number; // 0/1
+
+  // Absurd unit conversions — a playful caption under the watch-time stats.
+  enable_fun_stats: number;    // 0/1
+
   // Content
   recently_added_count: number;
   include_movies: number;
@@ -137,6 +152,42 @@ export interface HomeStat {
   stat_id: string;     // e.g. "top_movies", "top_tv", "top_users"
   stat_title?: string;
   rows: HomeStatRow[];
+}
+
+export interface HistoryRow {
+  date?: number;
+  started?: number;
+  stopped?: number;
+  duration?: number; // seconds actually watched
+  user_id?: number;
+  user?: string;
+  friendly_name?: string;
+  full_title?: string;
+  title?: string;
+  grandparent_title?: string;
+  grandparent_rating_key?: string;
+  rating_key?: string;
+  media_type?: string;
+  year?: string | number;
+  watched_status?: number;
+}
+
+export interface UsersTableRow {
+  user_id: number;
+  user?: string;
+  friendly_name?: string;
+  last_seen?: number | null; // epoch seconds, or null if never
+  plays?: number;
+  duration?: number;
+}
+
+export interface TautulliLibrary {
+  section_id: string | number;
+  section_name?: string;
+  section_type?: string; // "movie" | "show" | "artist" | "photo"
+  count?: number | string;
+  parent_count?: number | string;
+  child_count?: number | string;
 }
 
 export interface TautulliUser {

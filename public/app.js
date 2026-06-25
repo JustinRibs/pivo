@@ -13,7 +13,9 @@ const NUMERIC_FIELDS = new Set([
   'stats_window_days', 'schedule_enabled', 'cloudinary_enabled',
   'radarr_enabled', 'sonarr_enabled', 'upcoming_window_days',
   'enable_upcoming', 'upcoming_replaces_recent',
-  'greeting_enabled', 'request_enabled'
+  'greeting_enabled', 'request_enabled',
+  'enable_superlatives', 'enable_flex_bar', 'uptime_enabled',
+  'seasonal_theme_enabled', 'enable_fun_stats'
 ]);
 
 const BOOL_FIELDS = new Set([
@@ -22,11 +24,15 @@ const BOOL_FIELDS = new Set([
   'enable_stats', 'schedule_enabled', 'cloudinary_enabled',
   'radarr_enabled', 'sonarr_enabled',
   'enable_upcoming', 'upcoming_replaces_recent',
-  'greeting_enabled', 'request_enabled'
+  'greeting_enabled', 'request_enabled',
+  'enable_superlatives', 'enable_flex_bar', 'uptime_enabled',
+  'seasonal_theme_enabled', 'enable_fun_stats'
 ]);
 
 // Labels + canonical order for the drag-to-reorder section list.
 const SECTION_LABELS = {
+  flex_bar: 'State of the server',
+  superlatives: 'Server Wrapped awards',
   stats: 'Watch stats',
   top_movies: 'Most watched movies',
   top_tv: 'Most watched TV',
@@ -38,7 +44,7 @@ const SECTION_LABELS = {
   upcoming_shows: 'Coming soon · TV'
 };
 const DEFAULT_SECTION_ORDER = [
-  'stats', 'top_movies', 'top_tv', 'top_users',
+  'flex_bar', 'stats', 'superlatives', 'top_movies', 'top_tv', 'top_users',
   'recent_movies', 'recent_tv', 'recent_music',
   'upcoming_movies', 'upcoming_shows'
 ];
@@ -308,7 +314,10 @@ function parseSectionOrder(raw) {
     const parsed = JSON.parse(raw || '[]');
     if (Array.isArray(parsed)) order = parsed.filter((k) => k in SECTION_LABELS);
   } catch {}
-  for (const k of DEFAULT_SECTION_ORDER) if (!order.includes(k)) order.push(k);
+  // Insert missing keys at their canonical position (matches the template).
+  DEFAULT_SECTION_ORDER.forEach((k, i) => {
+    if (!order.includes(k)) order.splice(Math.min(i, order.length), 0, k);
+  });
   return order;
 }
 
@@ -449,6 +458,7 @@ function bindActions() {
   bindTest('#test-radarr-btn', '#test-radarr-status', '/api/test/radarr');
   bindTest('#test-sonarr-btn', '#test-sonarr-status', '/api/test/sonarr');
   bindTest('#test-smtp-btn', '#test-smtp-status', '/api/test/smtp');
+  bindTest('#test-uptime-btn', '#test-uptime-status', '/api/test/uptime');
 
   $('#test-send-btn').addEventListener('click', async () => {
     const email = $('#test-email').value.trim();

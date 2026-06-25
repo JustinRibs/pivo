@@ -21,6 +21,7 @@ import {
 } from './db.js';
 import { TautulliClient } from './tautulli.js';
 import { RadarrClient, SonarrClient } from './arr.js';
+import { fetchUptimePercent } from './uptime.js';
 import { composeNewsletter } from './email/compose.js';
 import { composeBroadcast } from './email/broadcast.js';
 import { applySubstitutions, buildPreviewUnsubscribeUrl, PREVIEW_TOKEN, runNewsletter, sendComposed, verifySmtp, type SendableRecipient } from './email/send.js';
@@ -88,6 +89,11 @@ fastify.put<{ Body: Partial<Settings> }>('/api/settings', async (req) => {
     'schedule_enabled',
     'greeting_enabled',
     'request_enabled',
+    'enable_superlatives',
+    'enable_flex_bar',
+    'uptime_enabled',
+    'seasonal_theme_enabled',
+    'enable_fun_stats',
     'cloudinary_enabled',
     'radarr_enabled',
     'sonarr_enabled',
@@ -281,6 +287,17 @@ fastify.post('/api/test/sonarr', async () => {
 fastify.post('/api/test/smtp', async () => {
   const s = getSettings();
   return verifySmtp(s);
+});
+
+fastify.post('/api/test/uptime', async () => {
+  const s = getSettings();
+  if (!s.uptime_kuma_url || !s.uptime_kuma_slug) {
+    return { ok: false, message: 'Set both the Uptime URL and status-page slug first' };
+  }
+  const pct = await fetchUptimePercent(s.uptime_kuma_url, s.uptime_kuma_slug);
+  return pct == null
+    ? { ok: false, message: 'Could not read uptime — check the URL and slug' }
+    : { ok: true, message: `Uptime reads ${pct}%` };
 });
 
 fastify.post<{ Body: { email: string } }>('/api/test/send', async (req, reply) => {

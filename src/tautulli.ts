@@ -1,5 +1,5 @@
 import { request } from 'undici';
-import type { HomeStat, RecentlyAddedItem, TautulliUser } from './types.js';
+import type { HistoryRow, HomeStat, RecentlyAddedItem, TautulliLibrary, TautulliUser, UsersTableRow } from './types.js';
 
 export class TautulliError extends Error {}
 
@@ -56,6 +56,45 @@ export class TautulliClient {
       stats_type: 'plays'
     });
     return data || [];
+  }
+
+  /** Detailed play-history rows over the last `afterDays` days (for superlatives). */
+  async getHistory(opts: { afterDays?: number; length?: number } = {}): Promise<HistoryRow[]> {
+    const params: Record<string, string | number> = {
+      length: opts.length ?? 1000,
+      order_column: 'date',
+      order_dir: 'desc'
+    };
+    if (opts.afterDays) {
+      params.after = new Date(Date.now() - opts.afterDays * 86400_000).toISOString().slice(0, 10);
+    }
+    const data = await this.call<{ data?: HistoryRow[] }>('get_history', params);
+    return data?.data || [];
+  }
+
+  /** Per-user table including `last_seen` — used to find the "Ghost" award. */
+  async getUsersTable(): Promise<UsersTableRow[]> {
+    const data = await this.call<{ data?: UsersTableRow[] }>('get_users_table', {
+      length: 1000,
+      order_column: 'last_seen',
+      order_dir: 'desc'
+    });
+    return data?.data || [];
+  }
+
+  /** Library sections with item counts (movies, shows, episodes). */
+  async getLibraries(): Promise<TautulliLibrary[]> {
+    const data = await this.call<TautulliLibrary[]>('get_libraries');
+    return data || [];
+  }
+
+  /** Total file size (bytes) for a single library section. Best-effort. */
+  async getLibraryMediaInfo(sectionId: string | number): Promise<number> {
+    const data = await this.call<{ total_file_size?: number | string }>('get_library_media_info', {
+      section_id: sectionId,
+      length: 0
+    });
+    return Number(data?.total_file_size || 0);
   }
 
   async getHistoryTotals(timeRange: number): Promise<{ totalPlays: number; totalDurationSec: number }> {

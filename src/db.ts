@@ -94,10 +94,21 @@ const DEFAULTS: Settings = {
   request_label: 'Request a movie or show',
 
   section_order: JSON.stringify([
-    'stats', 'top_movies', 'top_tv', 'top_users',
+    'flex_bar', 'stats', 'superlatives', 'top_movies', 'top_tv', 'top_users',
     'recent_movies', 'recent_tv', 'recent_music',
     'upcoming_movies', 'upcoming_shows'
   ]),
+
+  enable_superlatives: 0,
+
+  enable_flex_bar: 0,
+  uptime_enabled: 0,
+  uptime_kuma_url: '',
+  uptime_kuma_slug: '',
+
+  seasonal_theme_enabled: 0,
+
+  enable_fun_stats: 0,
 
   recently_added_count: 8,
   include_movies: 1,
