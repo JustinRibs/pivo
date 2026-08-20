@@ -19,6 +19,8 @@ export interface TemplateData {
   flex?: FlexStats;
   /** Playful unit-conversion caption shown under the watch-time stats. */
   funStat?: string;
+  /** AI-written opener, rendered under the header text. */
+  aiIntro?: string;
   /** Seasonal accent override (e.g. spooky orange in October). Falls back to brand_accent. */
   accentOverride?: string;
   /** Seasonal emoji shown in the date eyebrow. */
@@ -180,7 +182,7 @@ function accentRule(accent: string): string {
 }
 
 export function buildMjml(data: TemplateData): string {
-  const { settings, movies, shows, music, topMovies, topTV, topUsers, stats, upcomingMovies, upcomingShows, upcomingWindowDays, superlatives, flex, funStat, accentOverride, seasonalEmoji, generatedDate, logoSrc, includeUnsubscribe } = data;
+  const { settings, movies, shows, music, topMovies, topTV, topUsers, stats, upcomingMovies, upcomingShows, upcomingWindowDays, superlatives, flex, funStat, aiIntro, accentOverride, seasonalEmoji, generatedDate, logoSrc, includeUnsubscribe } = data;
   const accent = accentOverride || settings.brand_accent || '#e5a00d';
   const accentLight = lightenHex(accent, 0.4);
   const brandName = esc(settings.brand_name || 'Pivo');
@@ -216,6 +218,10 @@ export function buildMjml(data: TemplateData): string {
         ${
           headerHtml
             ? `<mj-text align="center" color="${muted}" font-size="14px" line-height="1.6" padding="20px 16px 0 16px">${headerHtml}</mj-text>`
+            : ''
+        }${
+          aiIntro
+            ? `<mj-text align="center" color="${muted}" font-size="14px" line-height="1.7" font-style="italic" padding="${headerHtml ? '12px' : '20px'} 16px 0 16px">${esc(aiIntro)}</mj-text>`
             : ''
         }
       </mj-column>

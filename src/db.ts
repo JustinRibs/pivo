@@ -101,6 +101,16 @@ const DEFAULTS: Settings = {
 
   enable_superlatives: 0,
 
+  enable_ai_captions: 0,
+  ai_write_intro: 0,
+  ai_provider: 'openai',
+  ai_base_url: '',
+  ai_model: '',
+  ai_api_key: '',
+  ai_extra_instructions: '',
+  ai_timeout_ms: 30000,
+  ai_ollama_keep_alive: '0s',
+
   enable_flex_bar: 0,
   uptime_enabled: 0,
   uptime_kuma_url: '',

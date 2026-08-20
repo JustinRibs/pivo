@@ -63,7 +63,8 @@ fastify.get('/api/settings', async () => {
   return {
     ...s,
     smtp_pass: s.smtp_pass ? '__set__' : '',
-    cloudinary_api_secret: s.cloudinary_api_secret ? '__set__' : ''
+    cloudinary_api_secret: s.cloudinary_api_secret ? '__set__' : '',
+    ai_api_key: s.ai_api_key ? '__set__' : ''
   };
 });
 
@@ -72,6 +73,7 @@ fastify.put<{ Body: Partial<Settings> }>('/api/settings', async (req) => {
   // If a masked sentinel comes back from the form, drop it so we don't overwrite
   if ((body as any).smtp_pass === '__set__') delete (body as any).smtp_pass;
   if ((body as any).cloudinary_api_secret === '__set__') delete (body as any).cloudinary_api_secret;
+  if ((body as any).ai_api_key === '__set__') delete (body as any).ai_api_key;
 
   // Coerce booleans -> 0/1 for sqlite
   const numericKeys: (keyof Settings)[] = [
@@ -94,6 +96,9 @@ fastify.put<{ Body: Partial<Settings> }>('/api/settings', async (req) => {
     'uptime_enabled',
     'seasonal_theme_enabled',
     'enable_fun_stats',
+    'enable_ai_captions',
+    'ai_write_intro',
+    'ai_timeout_ms',
     'cloudinary_enabled',
     'radarr_enabled',
     'sonarr_enabled',
@@ -112,7 +117,8 @@ fastify.put<{ Body: Partial<Settings> }>('/api/settings', async (req) => {
   return {
     ...next,
     smtp_pass: next.smtp_pass ? '__set__' : '',
-    cloudinary_api_secret: next.cloudinary_api_secret ? '__set__' : ''
+    cloudinary_api_secret: next.cloudinary_api_secret ? '__set__' : '',
+    ai_api_key: next.ai_api_key ? '__set__' : ''
   };
 });
 

@@ -387,6 +387,60 @@
             Seasonal theming temporarily overrides your accent color around Halloween, the winter holidays, Valentine's, and a few others.
           </p>
 
+          <h3>AI-written copy</h3>
+          <p class="hint">
+            Hands the <em>already-computed</em> award facts to a language model and lets it rephrase them with some personality.
+            The model never sees your raw watch history and never produces a number — if it fails, times out, or returns junk,
+            the newsletter silently falls back to the standard wording.
+          </p>
+          <div class="row">
+            <label class="checkbox">
+              <input data-field="enable_ai_captions" type="checkbox" />
+              <span>Rewrite the Server Wrapped award captions</span>
+            </label>
+            <label class="checkbox">
+              <input data-field="ai_write_intro" type="checkbox" />
+              <span>Also write a short intro above the newsletter</span>
+            </label>
+          </div>
+          <div class="row">
+            <label>Provider
+              <select data-field="ai_provider">
+                <option value="openai">OpenAI-compatible</option>
+                <option value="anthropic">Anthropic</option>
+                <option value="ollama">Ollama (local)</option>
+              </select>
+            </label>
+            <label>Model
+              <input data-field="ai_model" type="text" placeholder="gpt-4o-mini / claude-opus-5 / llama3.2:3b" />
+            </label>
+          </div>
+          <div class="row">
+            <label>API base URL
+              <input data-field="ai_base_url" type="url" placeholder="leave blank for the provider default" />
+            </label>
+            <label>API key
+              <input data-field="ai_api_key" type="password" placeholder="leave blank to keep current" />
+            </label>
+          </div>
+          <div class="row">
+            <label>Timeout (ms)
+              <input data-field="ai_timeout_ms" type="number" placeholder="30000" />
+            </label>
+            <label>Ollama keep-alive
+              <input data-field="ai_ollama_keep_alive" type="text" placeholder="0s" />
+            </label>
+          </div>
+          <label>Tone direction <span class="muted">(optional)</span>
+            <textarea data-field="ai_extra_instructions" rows="3" placeholder="e.g. Dry and deadpan. Roast people gently. Never use exclamation marks."></textarea>
+          </label>
+          <p class="hint">
+            <strong>OpenAI-compatible</strong> covers OpenAI, OpenRouter, Groq, Together, DeepSeek, Mistral, LM Studio, llama.cpp and vLLM —
+            point the base URL at any of them. <strong>Ollama</strong> uses its native API so it can pass <code>keep_alive</code>;
+            <code>0s</code> unloads the model from VRAM the moment the newsletter is composed, which matters if the same GPU also
+            handles Plex transcodes. Leave the API key blank for local backends.
+          </p>
+
           <h3>Uptime badge</h3>
           <div class="row">
             <label class="checkbox">

@@ -4,6 +4,7 @@ import mjml2html from 'mjml';
 import { TautulliClient, formatDuration } from '../tautulli.js';
 import { RadarrClient, SonarrClient, fetchRemoteImage, type UpcomingEpisode } from '../arr.js';
 import { fetchUptimePercent } from '../uptime.js';
+import { polishNewsletter } from '../ai.js';
 import { UPLOADS_DIR } from '../config.js';
 import { lookupCloudinaryUrl } from '../db.js';
 import { buildPublicId, cloudinaryConfigFromSettings, uploadImageBuffer, type CloudinaryConfig } from '../cloudinary.js';
@@ -398,6 +399,24 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
 
   const includeUnsubscribe = !!settings.public_url;
 
+  // --- AI-written copy -------------------------------------------------------
+  // Rephrases the award captions and, optionally, writes the intro. The model
+  // is handed only already-computed facts, and `polishNewsletter` swallows its
+  // own errors — so this can never block or corrupt a send.
+  let aiIntro: string | undefined;
+  if (settings.enable_ai_captions) {
+    const polished = await polishNewsletter(settings, superlatives ?? [], {
+      windowDays: settings.stats_window_days,
+      totalPlays: stats?.totalPlays,
+      totalDuration: stats?.totalDuration ?? (totalWatchSec > 0 ? formatDuration(totalWatchSec) : undefined),
+      newMovies: movies.length,
+      newShows: shows.length,
+      newMusic: music.length
+    });
+    if (polished.awards.length > 0) superlatives = polished.awards;
+    aiIntro = polished.intro;
+  }
+
   const tplData: TemplateData = {
     settings,
     movies,
@@ -413,6 +432,7 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
     superlatives,
     flex,
     funStat,
+    aiIntro,
     accentOverride: season?.accent,
     seasonalEmoji: season?.emoji,
     generatedDate,
@@ -723,6 +743,10 @@ function buildPlainText(d: TemplateData): string {
   lines.push(d.settings.brand_name);
   lines.push(d.generatedDate);
   lines.push('');
+  if (d.aiIntro) {
+    lines.push(d.aiIntro);
+    lines.push('');
+  }
   if (d.flex && (d.flex.movies != null || d.flex.shows != null || d.flex.storageTb != null || d.flex.addedThisPeriod != null || d.flex.uptimePct != null)) {
     const parts: string[] = [];
     if (d.flex.movies != null) parts.push(`${d.flex.movies} movies`);

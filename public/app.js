@@ -15,7 +15,8 @@ const NUMERIC_FIELDS = new Set([
   'enable_upcoming', 'upcoming_replaces_recent',
   'greeting_enabled', 'request_enabled',
   'enable_superlatives', 'enable_flex_bar', 'uptime_enabled',
-  'seasonal_theme_enabled', 'enable_fun_stats'
+  'seasonal_theme_enabled', 'enable_fun_stats',
+  'enable_ai_captions', 'ai_write_intro', 'ai_timeout_ms'
 ]);
 
 const BOOL_FIELDS = new Set([
@@ -26,7 +27,8 @@ const BOOL_FIELDS = new Set([
   'enable_upcoming', 'upcoming_replaces_recent',
   'greeting_enabled', 'request_enabled',
   'enable_superlatives', 'enable_flex_bar', 'uptime_enabled',
-  'seasonal_theme_enabled', 'enable_fun_stats'
+  'seasonal_theme_enabled', 'enable_fun_stats',
+  'enable_ai_captions', 'ai_write_intro'
 ]);
 
 // Labels + canonical order for the drag-to-reorder section list.
