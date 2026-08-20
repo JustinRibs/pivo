@@ -95,6 +95,8 @@ fastify.put<{ Body: Partial<Settings> }>('/api/settings', async (req) => {
     'greeting_enabled',
     'request_enabled',
     'enable_superlatives',
+    'superlative_count',
+    'ai_curate_awards',
     'enable_flex_bar',
     'uptime_enabled',
     'seasonal_theme_enabled',

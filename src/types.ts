@@ -34,7 +34,15 @@ export interface Settings {
   section_order: string;
 
   // "Server Wrapped" awards (Night Owl, Biggest Binger, etc.) from watch history.
-  enable_superlatives: number; // 0/1
+  enable_superlatives: number;
+  /** How many awards the Server Wrapped section shows. */
+  superlative_count: number;
+  /**
+   * Let the model choose which awards run and what to call them. Winners and
+   * numbers stay code-computed either way — this only moves selection, emoji
+   * and title from fixed code to the model.
+   */
+  ai_curate_awards: number; // 0/1
 
   // Homelab "flex bar" — library counts, storage, items added, uptime badge.
   enable_flex_bar: number;     // 0/1

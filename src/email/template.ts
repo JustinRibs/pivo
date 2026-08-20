@@ -114,8 +114,11 @@ export interface RenderedUpcomingShow {
 }
 
 export interface Superlative {
+  /** Stable metric key (e.g. `night_owl`). Survives renaming, so AI-written
+   *  titles can be matched back to the fact they belong to. */
+  id?: string;
   emoji: string;
-  /** Award name, e.g. "Night Owl". */
+  /** Award name, e.g. "Night Owl". May be rewritten by the model. */
   title: string;
   /** Winner — a user or a title. */
   name: string;

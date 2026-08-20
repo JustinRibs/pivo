@@ -119,6 +119,8 @@ const DEFAULTS: Settings = {
   ]),
 
   enable_superlatives: 0,
+  superlative_count: 4,
+  ai_curate_awards: 0,
 
   enable_ai_captions: 0,
   ai_write_intro: 0,

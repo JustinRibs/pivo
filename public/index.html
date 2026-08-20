@@ -373,6 +373,16 @@
             </label>
           </div>
           <div class="row">
+            <label>Awards to show
+              <input data-field="superlative_count" type="number" min="1" max="8" placeholder="4" />
+            </label>
+          </div>
+          <p class="hint">
+            Sixteen awards are computed from your watch history each period — completion habits, weekend patterns, longest
+            single sitting, oldest thing anyone dug up, and so on — but only the ones with a real winner qualify, and only this
+            many are shown. Without AI curation you get the strongest qualifiers in a fixed priority order.
+          </p>
+          <div class="row">
             <label class="checkbox">
               <input data-field="enable_fun_stats" type="checkbox" />
               <span>Absurd unit conversions under the watch-time stats</span>
@@ -413,6 +423,18 @@
               <span>Rewrite the recently-added blurbs</span>
             </label>
           </div>
+          <div class="row">
+            <label class="checkbox">
+              <input data-field="ai_curate_awards" type="checkbox" />
+              <span>Let the model pick and name the awards</span>
+            </label>
+          </div>
+          <p class="hint">
+            Hands the model the whole bench of qualifying awards and lets it choose which ones run this week, in what order,
+            and what to call them — inventing the category name and picking the emoji. The winner and the number are still
+            computed in code and cannot be changed by the model, so a renamed award always belongs to the right person.
+            Expect the section to look different week to week; that's the point.
+          </p>
           <p class="hint">
             The subject is otherwise a fixed template and the inbox preview line never changes at all, so every edition looks
             identical in a crowded inbox — letting the model name what's actually in this one is the difference between a mail

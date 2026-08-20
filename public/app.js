@@ -14,7 +14,8 @@ const NUMERIC_FIELDS = new Set([
   'radarr_enabled', 'sonarr_enabled', 'upcoming_window_days',
   'enable_upcoming', 'upcoming_replaces_recent',
   'greeting_enabled', 'request_enabled',
-  'enable_superlatives', 'enable_flex_bar', 'uptime_enabled',
+  'enable_superlatives', 'superlative_count', 'ai_curate_awards',
+  'enable_flex_bar', 'uptime_enabled',
   'seasonal_theme_enabled', 'enable_fun_stats',
   'enable_ai_captions', 'ai_write_intro', 'ai_write_subject', 'ai_rewrite_summaries', 'ai_timeout_ms',
   'ai_daily_call_cap', 'ai_monthly_token_cap', 'ai_max_output_tokens', 'ai_cache_ttl_min'
@@ -27,7 +28,8 @@ const BOOL_FIELDS = new Set([
   'radarr_enabled', 'sonarr_enabled',
   'enable_upcoming', 'upcoming_replaces_recent',
   'greeting_enabled', 'request_enabled',
-  'enable_superlatives', 'enable_flex_bar', 'uptime_enabled',
+  'enable_superlatives', 'ai_curate_awards',
+  'enable_flex_bar', 'uptime_enabled',
   'seasonal_theme_enabled', 'enable_fun_stats',
   'enable_ai_captions', 'ai_write_intro', 'ai_write_subject', 'ai_rewrite_summaries'
 ]);

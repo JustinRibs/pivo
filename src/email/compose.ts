@@ -4,9 +4,9 @@ import mjml2html from 'mjml';
 import { TautulliClient, formatDuration } from '../tautulli.js';
 import { RadarrClient, SonarrClient, fetchRemoteImage, type UpcomingEpisode } from '../arr.js';
 import { fetchUptimePercent } from '../uptime.js';
-import { polishNewsletter, type AiCallSource, type AiSummaryItem } from '../ai.js';
+import { polishNewsletter, type AiCallSource, type AiSummaryItem, type AwardCandidate } from '../ai.js';
 import { UPLOADS_DIR } from '../config.js';
-import { lookupCloudinaryUrl } from '../db.js';
+import { listRecipients, lookupCloudinaryUrl } from '../db.js';
 import { buildPublicId, cloudinaryConfigFromSettings, uploadImageBuffer, type CloudinaryConfig } from '../cloudinary.js';
 import type { ComposedNewsletter, HistoryRow, RecentlyAddedItem, Settings, UsersTableRow } from '../types.js';
 import { buildMjml, UNSUBSCRIBE_PLACEHOLDER, type FlexStats, type RenderedItem, type RenderedShow, type RenderedStatRow, type RenderedUpcomingMovie, type RenderedUpcomingShow, type Superlative, type TemplateData } from './template.js';
@@ -31,6 +31,10 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
   let cidCounter = 0;
   const nextCid = () => `img${++cidCounter}@pivo`;
   const cloudinary = cloudinaryConfigFromSettings(settings);
+
+  // Built lazily (and once) — only the viewer/award sections need it.
+  let userNamesPromise: Promise<UserNameResolver> | undefined;
+  const userNames = () => (userNamesPromise ??= buildUserNameResolver(tautulli));
 
   function attachAsCid(filenameHint: string, bytes: Buffer, contentType: string): string {
     const cid = nextCid();
@@ -299,11 +303,12 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
       if (settings.enable_top_users) {
         const tu = findStat('top_users');
         if (tu) {
+          const names = await userNames();
           topUsers = [];
           for (const r of (tu.rows || []).slice(0, 5)) {
             const posterSrc = r.user_thumb ? await resolveImage(r.user_thumb, `user-${r.user_id}`, 80) : undefined;
             topUsers.push({
-              label: r.user || `User ${r.user_id}`,
+              label: names(r.user_id, r.user),
               detail: `${r.total_plays || 0} play${r.total_plays === 1 ? '' : 's'}`,
               posterSrc
             });
@@ -335,15 +340,20 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
   }
 
   // --- "Server Wrapped" superlatives ----------------------------------------
+  // The bench is kept around after picking so the AI pass can re-choose from it.
   let superlatives: Superlative[] | undefined;
+  let awardCandidates: AwardCandidate[] = [];
   if (settings.enable_superlatives) {
     try {
-      const [rows, usersTable] = await Promise.all([
+      const [rows, usersTable, names] = await Promise.all([
         tautulli.getHistory({ afterDays: settings.stats_window_days, length: 2000 }),
-        tautulli.getUsersTable()
+        tautulli.getUsersTable(),
+        userNames()
       ]);
-      const awards = computeSuperlatives(rows, usersTable);
-      if (awards.length > 0) superlatives = awards;
+      awardCandidates = computeAwardCandidates(rows, usersTable, names);
+      // Default lineup. Replaced below if the model is curating.
+      const picked = pickAwards(awardCandidates, awardLimit(settings));
+      if (picked.length > 0) superlatives = picked;
     } catch (err) {
       console.warn('Failed to compute superlatives:', err);
     }
@@ -433,11 +443,19 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
         windowDays: settings.stats_window_days,
         totalPlays: stats?.totalPlays,
         totalDuration: stats?.totalDuration ?? (totalWatchSec > 0 ? formatDuration(totalWatchSec) : undefined),
-        newMovies: movies.length,
-        newShows: shows.length,
-        newMusic: music.length
+        // Omit a category the newsletter doesn't carry, so the model has no
+        // zero to write around. `showRecent` is false when upcoming releases
+        // replace the recently-added block entirely.
+        newMovies: showRecent && settings.include_movies ? movies.length : undefined,
+        newShows: showRecent && settings.include_tv ? shows.length : undefined,
+        newMusic: showRecent && settings.include_music ? music.length : undefined
       },
-      { source: opts.aiSource ?? 'send', items }
+      {
+        source: opts.aiSource ?? 'send',
+        items,
+        candidates: awardCandidates,
+        awardLimit: awardLimit(settings)
+      }
     );
     if (polished.awards.length > 0) superlatives = polished.awards;
     aiIntro = polished.intro;
@@ -543,47 +561,124 @@ function formatShortDate(iso: string): string {
 
 // --- "Server Wrapped" superlatives ------------------------------------------
 
-function historyUserName(r: HistoryRow): string {
-  return (r.friendly_name || r.user || (r.user_id ? `User ${r.user_id}` : 'Someone')).trim();
+/** Turns a Tautulli user into the name we actually print in the email. */
+type UserNameResolver = (userId?: number, fallback?: string) => string;
+
+/**
+ * Build a user_id -> display-name lookup. Prefers the name saved on the matching
+ * `recipients` row (joined to the Plex account by email, the same key the
+ * recipient importer uses) so the newsletter shows the names you curate rather
+ * than raw Plex usernames. Falls back to Tautulli's friendly name, then the
+ * username, so an unmatched viewer still reads sensibly.
+ */
+async function buildUserNameResolver(tautulli: TautulliClient): Promise<UserNameResolver> {
+  const byId = new Map<number, string>();
+  try {
+    const users = await tautulli.getUsers();
+    const nameByEmail = new Map<string, string>();
+    for (const rec of listRecipients()) {
+      const email = (rec.email || '').trim().toLowerCase();
+      const name = (rec.name || '').trim();
+      if (email && name) nameByEmail.set(email, name);
+    }
+    for (const u of users) {
+      if (u.user_id == null) continue;
+      const email = (u.email || '').trim().toLowerCase();
+      const name = ((email && nameByEmail.get(email)) || u.friendly_name || u.username || '').trim();
+      if (name) byId.set(Number(u.user_id), name);
+    }
+  } catch (err) {
+    // Best-effort: without the map we simply fall back to Tautulli's own names.
+    console.warn('Failed to map Plex users to recipients:', err);
+  }
+
+  return (userId, fallback) => {
+    const mapped = userId == null ? undefined : byId.get(Number(userId));
+    return (mapped || (fallback || '').trim() || (userId != null ? `User ${userId}` : 'Someone')).trim();
+  };
+}
+
+function historyUserName(r: HistoryRow, names: UserNameResolver): string {
+  return names(r.user_id, r.friendly_name || r.user);
 }
 
 /**
- * Derive playful awards from recent watch history + the users table. Each award
- * is only included when there's a genuine winner, so a quiet week simply yields
- * fewer cards rather than empty ones.
+ * Derive award candidates from recent watch history + the users table.
+ *
+ * This is the *bench*, not the lineup — it computes every award that has a
+ * genuine winner this period, which is usually more than an email should show.
+ * Picking which ones run is a separate decision (see `pickAwards` and the AI
+ * curation path in ai.ts), so that choice can vary week to week while every
+ * number here stays code-computed.
+ *
+ * Each candidate carries a `note` describing what the metric actually measures.
+ * That never renders — it exists so a model naming the award knows what it is
+ * naming, rather than guessing from a number.
  */
-function computeSuperlatives(rows: HistoryRow[], usersTable: UsersTableRow[]): Superlative[] {
-  const awards: Superlative[] = [];
+function computeAwardCandidates(
+  rows: HistoryRow[],
+  usersTable: UsersTableRow[],
+  names: UserNameResolver
+): AwardCandidate[] {
+  const out: AwardCandidate[] = [];
   const tsOf = (r: HistoryRow) => Number(r.started || r.date || 0);
+  const hourOf = (r: HistoryRow) => new Date(tsOf(r) * 1000).getHours();
+  const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
-  // 🦉 Night Owl — most plays started between midnight and 5am (container TZ).
-  const lateByUser = new Map<string, number>();
-  for (const r of rows) {
-    const ts = tsOf(r);
-    if (!ts) continue;
-    const h = new Date(ts * 1000).getHours();
-    if (h >= 0 && h < 5) {
-      const k = historyUserName(r);
-      lateByUser.set(k, (lateByUser.get(k) || 0) + 1);
+  /** Plays in an hour band, bucketed by user. */
+  const byHourBand = (from: number, to: number) => {
+    const m = new Map<string, number>();
+    for (const r of rows) {
+      if (!tsOf(r)) continue;
+      const h = hourOf(r);
+      if (h >= from && h < to) m.set(historyUserName(r, names), (m.get(historyUserName(r, names)) || 0) + 1);
     }
-  }
-  const nightOwl = topEntry(lateByUser);
+    return m;
+  };
+
+  // 🦉 Night Owl — plays started between midnight and 5am (container TZ).
+  const nightOwl = topEntry(byHourBand(0, 5));
   if (nightOwl && nightOwl[1] > 0) {
-    awards.push({ emoji: '🦉', title: 'Night Owl', name: nightOwl[0], detail: `${nightOwl[1]} late-night play${nightOwl[1] === 1 ? '' : 's'}` });
+    out.push({
+      id: 'night_owl', emoji: '🦉', title: 'Night Owl', name: nightOwl[0],
+      detail: `${plural(nightOwl[1], 'late-night play')}`,
+      note: 'most plays started between midnight and 5am'
+    });
+  }
+
+  // 🐓 Early Bird — the 5am-9am crowd.
+  const earlyBird = topEntry(byHourBand(5, 9));
+  if (earlyBird && earlyBird[1] >= 2) {
+    out.push({
+      id: 'early_bird', emoji: '🐓', title: 'Early Bird', name: earlyBird[0],
+      detail: `${plural(earlyBird[1], 'play')} before 9am`,
+      note: 'most plays started between 5am and 9am'
+    });
+  }
+
+  // 📺 Prime Time — reliably parked on the sofa at 8pm.
+  const primeTime = topEntry(byHourBand(20, 24));
+  if (primeTime && primeTime[1] >= 3) {
+    out.push({
+      id: 'prime_time', emoji: '📺', title: 'Prime Time', name: primeTime[0],
+      detail: `${plural(primeTime[1], 'play')} in the 8-to-midnight slot`,
+      note: 'most plays started between 8pm and midnight — the classic evening viewer'
+    });
   }
 
   // 🍿 Biggest Binger — most watch time over the window.
   const secByUser = new Map<string, number>();
   for (const r of rows) {
     const sec = Number(r.duration || 0);
-    if (sec > 0) {
-      const k = historyUserName(r);
-      secByUser.set(k, (secByUser.get(k) || 0) + sec);
-    }
+    if (sec > 0) secByUser.set(historyUserName(r, names), (secByUser.get(historyUserName(r, names)) || 0) + sec);
   }
   const binger = topEntry(secByUser);
   if (binger && binger[1] >= 1800) {
-    awards.push({ emoji: '🍿', title: 'Biggest Binger', name: binger[0], detail: `${formatDuration(binger[1])} watched` });
+    out.push({
+      id: 'biggest_binger', emoji: '🍿', title: 'Biggest Binger', name: binger[0],
+      detail: `${formatDuration(binger[1])} watched`,
+      note: 'most total watch time this period'
+    });
   }
 
   // 🔁 Broken Record — the single most-replayed title.
@@ -594,19 +689,21 @@ function computeSuperlatives(rows: HistoryRow[], usersTable: UsersTableRow[]): S
   }
   const replayed = topEntry(playsByTitle);
   if (replayed && replayed[1] >= 2) {
-    awards.push({ emoji: '🔁', title: 'Broken Record', name: replayed[0], detail: `${replayed[1]} plays` });
+    out.push({
+      id: 'broken_record', emoji: '🔁', title: 'Broken Record', name: replayed[0],
+      detail: `${plural(replayed[1], 'play')}`,
+      note: 'the single most-replayed title on the server — the winner is a title, not a person'
+    });
   }
 
-  // ⚡ Speed Demon — most episodes of one series, fastest. (Approximate "finished
-  // a series fastest" as the highest episodes-per-day binge of a single show.)
+  // ⚡ Speed Demon — highest episodes-per-day burn through one series.
   const binge = new Map<string, { user: string; show: string; count: number; min: number; max: number }>();
   for (const r of rows) {
     if (r.media_type !== 'episode') continue;
     const show = (r.grandparent_title || '').trim();
-    if (!show) continue;
     const ts = tsOf(r);
-    if (!ts) continue;
-    const user = historyUserName(r);
+    if (!show || !ts) continue;
+    const user = historyUserName(r, names);
     const key = `${user}|||${show}`;
     const e = binge.get(key);
     if (e) {
@@ -627,8 +724,12 @@ function computeSuperlatives(rows: HistoryRow[], usersTable: UsersTableRow[]): S
     }
   }
   if (speed) {
-    const span = speed.spanDays < 1 ? 'a single day' : `${Math.round(speed.spanDays)} day${Math.round(speed.spanDays) === 1 ? '' : 's'}`;
-    awards.push({ emoji: '⚡', title: 'Speed Demon', name: speed.user, detail: `${speed.count} episodes of ${speed.show} in ${span}` });
+    const span = speed.spanDays < 1 ? 'a single day' : plural(Math.round(speed.spanDays), 'day');
+    out.push({
+      id: 'speed_demon', emoji: '⚡', title: 'Speed Demon', name: speed.user,
+      detail: `${speed.count} episodes of ${speed.show} in ${span}`,
+      note: 'tore through one series faster than anyone else'
+    });
   }
 
   // 👻 Ghost — the most-active user who's gone quiet for 30+ days.
@@ -640,15 +741,217 @@ function computeSuperlatives(rows: HistoryRow[], usersTable: UsersTableRow[]): S
     if (plays <= 0 || !lastSeen) continue;
     const days = (nowSec - lastSeen) / 86400;
     if (days < 30) continue;
-    if (!ghost || plays > ghost.plays) {
-      ghost = { name: (u.friendly_name || u.user || `User ${u.user_id}`).trim(), plays, days };
-    }
+    if (!ghost || plays > ghost.plays) ghost = { name: names(u.user_id, u.friendly_name || u.user), plays, days };
   }
   if (ghost) {
-    awards.push({ emoji: '👻', title: 'Ghost', name: ghost.name, detail: `we miss you — last seen ${Math.round(ghost.days)} days ago` });
+    out.push({
+      id: 'ghost', emoji: '👻', title: 'Ghost', name: ghost.name,
+      detail: `last seen ${plural(Math.round(ghost.days), 'day')} ago`,
+      note: 'a former regular who has not watched anything in over a month — affectionate, not scolding'
+    });
   }
 
-  return awards;
+  // --- Completion habits -----------------------------------------------------
+  // Tautulli reports watched_status as 0, 0.5 or 1; 1 means finished.
+  const startedBy = new Map<string, number>();
+  const finishedBy = new Map<string, number>();
+  for (const r of rows) {
+    const u = historyUserName(r, names);
+    startedBy.set(u, (startedBy.get(u) || 0) + 1);
+    if (Number(r.watched_status || 0) >= 1) finishedBy.set(u, (finishedBy.get(u) || 0) + 1);
+  }
+
+  // 🥱 One and Done — starts plenty, finishes little.
+  let quitter: { user: string; abandoned: number; started: number } | null = null;
+  for (const [u, started] of startedBy) {
+    const abandoned = started - (finishedBy.get(u) || 0);
+    if (started < 4 || abandoned < 3) continue;
+    if (!quitter || abandoned > quitter.abandoned) quitter = { user: u, abandoned, started };
+  }
+  if (quitter) {
+    out.push({
+      id: 'one_and_done', emoji: '🥱', title: 'One and Done', name: quitter.user,
+      detail: `${quitter.abandoned} of ${quitter.started} left unfinished`,
+      note: 'starts things and wanders off — the serial abandoner'
+    });
+  }
+
+  // ✅ The Completionist — finishes what they start.
+  let finisher: { user: string; finished: number; started: number } | null = null;
+  for (const [u, started] of startedBy) {
+    const finished = finishedBy.get(u) || 0;
+    if (started < 4 || finished / started < 0.9) continue;
+    if (!finisher || finished > finisher.finished) finisher = { user: u, finished, started };
+  }
+  if (finisher) {
+    out.push({
+      id: 'completionist', emoji: '✅', title: 'The Completionist', name: finisher.user,
+      detail: `finished ${finisher.finished} of ${finisher.started}`,
+      note: 'finishes almost everything they start — the opposite of a quitter'
+    });
+  }
+
+  // 🎉 Weekend Warrior — watching is concentrated on Saturday and Sunday.
+  const weekendBy = new Map<string, number>();
+  for (const r of rows) {
+    const ts = tsOf(r);
+    if (!ts) continue;
+    const day = new Date(ts * 1000).getDay();
+    if (day === 0 || day === 6) weekendBy.set(historyUserName(r, names), (weekendBy.get(historyUserName(r, names)) || 0) + 1);
+  }
+  let weekender: { user: string; weekend: number; total: number } | null = null;
+  for (const [u, weekend] of weekendBy) {
+    const total = startedBy.get(u) || weekend;
+    if (weekend < 3 || weekend / total < 0.6) continue;
+    if (!weekender || weekend > weekender.weekend) weekender = { user: u, weekend, total };
+  }
+  if (weekender) {
+    out.push({
+      id: 'weekend_warrior', emoji: '🎉', title: 'Weekend Warrior', name: weekender.user,
+      detail: `${weekender.weekend} of ${weekender.total} plays on a Saturday or Sunday`,
+      note: 'barely touches the server midweek, then makes up for it at the weekend'
+    });
+  }
+
+  // 🎚️ Channel Surfer — samples a lot of different things.
+  const titlesBy = new Map<string, Set<string>>();
+  for (const r of rows) {
+    const key = (r.grandparent_title || r.full_title || r.title || '').trim();
+    if (!key) continue;
+    const u = historyUserName(r, names);
+    if (!titlesBy.has(u)) titlesBy.set(u, new Set());
+    titlesBy.get(u)!.add(key);
+  }
+  let surfer: { user: string; count: number } | null = null;
+  for (const [u, set] of titlesBy) {
+    if (set.size < 6) continue;
+    if (!surfer || set.size > surfer.count) surfer = { user: u, count: set.size };
+  }
+  if (surfer) {
+    out.push({
+      id: 'channel_surfer', emoji: '🎚️', title: 'Channel Surfer', name: surfer.user,
+      detail: `${surfer.count} different titles`,
+      note: 'sampled more distinct titles than anyone — never settles on one thing'
+    });
+  }
+
+  // 🪑 Longest Sitting — the single biggest unbroken session.
+  let sitting: { user: string; sec: number; title: string } | null = null;
+  for (const r of rows) {
+    const start = Number(r.started || 0);
+    const stop = Number(r.stopped || 0);
+    if (!start || !stop || stop <= start) continue;
+    const sec = stop - start;
+    if (sec < 7200) continue;
+    if (!sitting || sec > sitting.sec) {
+      sitting = { user: historyUserName(r, names), sec, title: (r.grandparent_title || r.full_title || r.title || '').trim() };
+    }
+  }
+  if (sitting) {
+    out.push({
+      id: 'longest_sitting', emoji: '🪑', title: 'Longest Sitting', name: sitting.user,
+      detail: `${formatDuration(sitting.sec)} without getting up${sitting.title ? ` (${sitting.title})` : ''}`,
+      note: 'the single longest unbroken session of the period'
+    });
+  }
+
+  // 🕰️ Time Traveler — dug up the oldest release in the library.
+  let oldest: { user: string; year: number; title: string } | null = null;
+  for (const r of rows) {
+    const year = Number(r.year || 0);
+    if (!year || year > 1990) continue;
+    if (!oldest || year < oldest.year) {
+      oldest = { user: historyUserName(r, names), year, title: (r.grandparent_title || r.full_title || r.title || '').trim() };
+    }
+  }
+  if (oldest) {
+    out.push({
+      id: 'time_traveler', emoji: '🕰️', title: 'Time Traveler', name: oldest.user,
+      detail: `watched ${oldest.title || 'something'} from ${oldest.year}`,
+      note: 'watched the oldest release of anyone this period'
+    });
+  }
+
+  // 🛋️ Marathon Night — most watch time crammed into one calendar day.
+  const dayKey = (ts: number) => new Date(ts * 1000).toDateString();
+  const perUserDay = new Map<string, number>();
+  for (const r of rows) {
+    const ts = tsOf(r);
+    const sec = Number(r.duration || 0);
+    if (!ts || sec <= 0) continue;
+    const k = `${historyUserName(r, names)}|||${dayKey(ts)}`;
+    perUserDay.set(k, (perUserDay.get(k) || 0) + sec);
+  }
+  const marathon = topEntry(perUserDay);
+  if (marathon && marathon[1] >= 10800) {
+    out.push({
+      id: 'marathon_night', emoji: '🛋️', title: 'Marathon Night', name: marathon[0].split('|||')[0],
+      detail: `${formatDuration(marathon[1])} in a single day`,
+      note: 'the most watch time anyone packed into one calendar day'
+    });
+  }
+
+  // 🎬 Double Feature — most movies in one day.
+  const moviesPerDay = new Map<string, number>();
+  for (const r of rows) {
+    if (r.media_type !== 'movie') continue;
+    const ts = tsOf(r);
+    if (!ts) continue;
+    const k = `${historyUserName(r, names)}|||${dayKey(ts)}`;
+    moviesPerDay.set(k, (moviesPerDay.get(k) || 0) + 1);
+  }
+  const doubleFeature = topEntry(moviesPerDay);
+  if (doubleFeature && doubleFeature[1] >= 2) {
+    out.push({
+      id: 'double_feature', emoji: '🎬', title: 'Double Feature', name: doubleFeature[0].split('|||')[0],
+      detail: `${doubleFeature[1]} films in one day`,
+      note: 'watched the most movies back-to-back in a single day'
+    });
+  }
+
+  // 🐁 The Lurker — present, but only just. Needs a crowd to be funny.
+  if (startedBy.size >= 3) {
+    let lurker: { user: string; plays: number } | null = null;
+    for (const [u, plays] of startedBy) {
+      if (plays < 1) continue;
+      if (!lurker || plays < lurker.plays) lurker = { user: u, plays };
+    }
+    if (lurker && lurker.plays <= 2) {
+      out.push({
+        id: 'the_lurker', emoji: '🐁', title: 'The Lurker', name: lurker.user,
+        detail: `${plural(lurker.plays, 'play')} all period`,
+        note: 'technically used the server, and that is about all you can say for them'
+      });
+    }
+  }
+
+  return out;
+}
+
+/**
+ * Fallback lineup when the model isn't curating. Ordered by how well each award
+ * reads to someone who wasn't watching the numbers — the crowd-pleasers first,
+ * the niche ones only if there's room.
+ */
+const AWARD_PRIORITY = [
+  'biggest_binger', 'night_owl', 'speed_demon', 'broken_record', 'marathon_night',
+  'one_and_done', 'weekend_warrior', 'double_feature', 'longest_sitting', 'completionist',
+  'channel_surfer', 'prime_time', 'early_bird', 'time_traveler', 'ghost', 'the_lurker'
+];
+
+/** How many awards to show. Clamped — past about eight the section stops reading as a highlight reel. */
+function awardLimit(settings: Settings): number {
+  const n = Number(settings.superlative_count);
+  if (!Number.isFinite(n) || n <= 0) return 4;
+  return Math.min(Math.round(n), 8);
+}
+
+function pickAwards(candidates: AwardCandidate[], limit: number): AwardCandidate[] {
+  const rank = (a: AwardCandidate) => {
+    const i = AWARD_PRIORITY.indexOf(a.id);
+    return i === -1 ? AWARD_PRIORITY.length : i;
+  };
+  return [...candidates].sort((a, b) => rank(a) - rank(b)).slice(0, limit);
 }
 
 function topEntry(m: Map<string, number>): [string, number] | null {

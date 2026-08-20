@@ -35,9 +35,15 @@ export interface AiContext {
   totalPlays?: number;
   /** Pre-formatted, e.g. "2 days 3 hrs". */
   totalDuration?: string;
-  newMovies: number;
-  newShows: number;
-  newMusic: number;
+  /**
+   * Counts for the categories this newsletter actually covers. A category the
+   * owner has switched off is `undefined` rather than `0` — telling the model
+   * "0 albums" invites it to write about the absence of a section that does
+   * not exist on this server.
+   */
+  newMovies?: number;
+  newShows?: number;
+  newMusic?: number;
 }
 
 /**
@@ -52,6 +58,17 @@ export interface AiSummaryItem {
   title: string;
   year?: string;
   summary: string;
+}
+
+/**
+ * An award the code has already decided is true. `name` and `detail` are facts
+ * and stay fixed; `emoji` and `title` are presentation and the model may
+ * replace them. `note` explains the metric so a renamed award still means
+ * something — it is prompt-only and never rendered.
+ */
+export interface AwardCandidate extends Superlative {
+  id: string;
+  note: string;
 }
 
 export interface AiPolish {
@@ -83,6 +100,10 @@ const MAX_SUMMARY = 110;
  * stay small on its own.
  */
 const MAX_AWARDS = 12;
+/** The bench can be larger than a lineup — candidates are one compact line each. */
+const MAX_CANDIDATES = 20;
+/** Award titles sit on one line next to an emoji. */
+const MAX_AWARD_TITLE = 34;
 const MAX_EXTRA_INSTRUCTIONS = 600;
 /** Blurb rewriting is the one feature that meaningfully grows the prompt. */
 const MAX_SUMMARY_ITEMS = 12;
@@ -129,9 +150,11 @@ const SYSTEM_PROMPT = `You write short, playful copy for a self-hosted Plex serv
 
 Hard rules:
 - Every number, name, and title in the input is already correct. Reuse them exactly as given. Never invent or alter a number, person, show, or movie, and never add facts you were not given.
+- Only ever write about the categories present in the facts. If a kind of media is not listed, this server does not use it — do not mention it, not even to note that there was none.
 - Warm and teasing, never mean. These are the owner's friends — gentle ribbing only.
 - Plain text only. No emoji, no markdown, no HTML, no quotation marks around the whole line.
 - Vary the sentence shapes. Do not start every caption the same way.
+- When you are naming awards, name them properly. Invent the category, do not fall back on generic labels, and let the name be as specific and strange as what actually happened. A name that could apply to any week is a wasted one.
 - When rewriting a synopsis, work only from the synopsis text you were given. Do not use anything you happen to know about the title, and do not add plot, cast, or opinion that is not in that text. If a synopsis is too thin to compress, return it close to as-is rather than filling the gap.
 
 Respond with JSON only, no prose before or after.`;
@@ -145,7 +168,14 @@ export async function polishNewsletter(
   settings: Settings,
   awards: Superlative[],
   ctx: AiContext,
-  opts: { source?: AiCallSource; items?: AiSummaryItem[] } = {}
+  opts: {
+    source?: AiCallSource;
+    items?: AiSummaryItem[];
+    /** Full bench of true awards, for the model to choose from when curating. */
+    candidates?: AwardCandidate[];
+    /** How many awards the newsletter should end up showing. */
+    awardLimit?: number;
+  } = {}
 ): Promise<AiPolish> {
   const nothing: AiPolish = { awards, summaries: {} };
   if (!settings.enable_ai_captions) return nothing;
@@ -156,9 +186,13 @@ export async function polishNewsletter(
 
   const wantIntro = !!settings.ai_write_intro;
   const wantSubject = !!settings.ai_write_subject;
-  // Only the first MAX_AWARDS are described; the rest keep their templated
-  // caption. mergeCaptions matches by title, so the tail is unaffected.
-  const described = awards.slice(0, MAX_AWARDS);
+
+  // Curating means the model sees the whole bench and picks the lineup; without
+  // it, it only sees the lineup code already picked and just rewords captions.
+  const bench = opts.candidates ?? [];
+  const curating = !!settings.ai_curate_awards && bench.length > 0;
+  const awardLimit = Math.max(1, Math.round(opts.awardLimit ?? awards.length ?? 1));
+  const described = curating ? bench.slice(0, MAX_CANDIDATES) : awards.slice(0, MAX_AWARDS);
   const items = settings.ai_rewrite_summaries ? (opts.items ?? []).slice(0, MAX_SUMMARY_ITEMS) : [];
   if (described.length === 0 && items.length === 0 && !wantIntro && !wantSubject) return nothing;
 
@@ -166,7 +200,7 @@ export async function polishNewsletter(
   const provider = providerOf(settings);
   const model = settings.ai_model;
   const maxOutputTokens = outputCeiling(settings);
-  const user = buildUserPrompt(settings, described, ctx, { wantIntro, wantSubject, items });
+  const user = buildUserPrompt(settings, described, ctx, { wantIntro, wantSubject, items, curating, awardLimit });
   const hash = requestHash(settings, provider, SYSTEM_PROMPT, user, maxOutputTokens);
 
   let raw: string;
@@ -214,7 +248,7 @@ export async function polishNewsletter(
     intro: wantIntro ? clean(parsed.intro, MAX_INTRO) : undefined,
     subject: wantSubject ? clean(parsed.subject, MAX_SUBJECT) : undefined,
     preheader: wantSubject ? clean(parsed.preheader, MAX_PREHEADER) : undefined,
-    awards: mergeCaptions(awards, parsed.captions),
+    awards: mergeAwards(described, awards, parsed.awards, { curating, awardLimit }),
     summaries: items.length > 0 ? mergeSummaries(items, parsed.summaries) : {}
   };
 }
@@ -302,29 +336,51 @@ function checkSpendCaps(settings: Settings): string | null {
 
 function buildUserPrompt(
   settings: Settings,
-  awards: Superlative[],
+  awards: (Superlative & { note?: string })[],
   ctx: AiContext,
-  want: { wantIntro: boolean; wantSubject: boolean; items: AiSummaryItem[] }
+  want: { wantIntro: boolean; wantSubject: boolean; items: AiSummaryItem[]; curating: boolean; awardLimit: number }
 ): string {
-  const { wantIntro, wantSubject, items } = want;
+  const { wantIntro, wantSubject, items, curating, awardLimit } = want;
+  const added = [
+    ctx.newMovies !== undefined ? `${ctx.newMovies} movie(s)` : '',
+    ctx.newShows !== undefined ? `${ctx.newShows} show(s)` : '',
+    ctx.newMusic !== undefined ? `${ctx.newMusic} album(s)` : ''
+  ].filter(Boolean);
+
   const facts = [
     `Period: the last ${ctx.windowDays} day(s).`,
     ctx.totalPlays !== undefined ? `Total plays: ${ctx.totalPlays}.` : '',
     ctx.totalDuration ? `Total watch time: ${ctx.totalDuration}.` : '',
-    `Newly added: ${ctx.newMovies} movie(s), ${ctx.newShows} show(s), ${ctx.newMusic} album(s).`
+    added.length > 0 ? `Newly added: ${added.join(', ')}.` : ''
   ]
     .filter(Boolean)
     .join('\n');
 
   const awardLines = awards
-    .map((a, i) => `${i + 1}. title="${a.title}" winner="${a.name}" facts="${a.detail}"`)
+    .map(
+      (a) =>
+        `- id=${a.id ?? 'unknown'} | winner: ${a.name} | fact: ${a.detail}` +
+        (a.note ? `\n    what it measures: ${a.note}` : '')
+    )
     .join('\n');
 
   const parts = [`Facts for this edition (all already verified):\n${facts}`];
 
   if (awards.length > 0) {
+    if (curating) {
+      parts.push(
+        `Award candidates. Every one below is true and already computed. ` +
+          `Pick the ${awardLimit} that make the best set for THIS week — favour variety and the ones with a genuinely funny or surprising number, and skip the flat ones. ` +
+          `Then name each one yourself: invent the award title and pick the emoji. Do not reuse the ids as names. Be specific to what actually happened, and make them different from each other. ` +
+          `Return them in the order they should appear.\n\n${awardLines}`
+      );
+    } else {
+      parts.push(
+        `Awards to caption. Rewrite ONLY the supporting caption for each; leave the title and emoji alone.\n${awardLines}`
+      );
+    }
     parts.push(
-      `Awards to caption. For each, rewrite ONLY the supporting caption. Keep the winner's name out of the caption (it is displayed separately), and preserve every number from "facts" exactly. Max ${MAX_DETAIL} characters each.\n${awardLines}`
+      `For every award: keep the id exactly as given, keep the winner's name out of the caption (it is displayed separately), and preserve every number from the fact exactly. Caption max ${MAX_DETAIL} characters${curating ? `, title max ${MAX_AWARD_TITLE} characters` : ''}.`
     );
   }
 
@@ -358,7 +414,9 @@ function buildUserPrompt(
   }
   if (awards.length > 0) {
     shape.push(
-      `  "captions": [{ "title": "<exact award title from the list>", "detail": "<rewritten caption>" }]`
+      curating
+        ? `  "awards": [{ "id": "<exact id from the candidate list>", "emoji": "<one emoji>", "title": "<your award name>", "detail": "<caption>" }]  // exactly ${awardLimit}, best first`
+        : `  "awards": [{ "id": "<exact id from the list>", "detail": "<rewritten caption>" }]`
     );
   }
   if (items.length > 0) {
@@ -377,23 +435,77 @@ function titleKey(s: string): string {
   return s.replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
-/** Merge model captions back onto awards, matched by normalised title. */
-function mergeCaptions(awards: Superlative[], captions: unknown): Superlative[] {
-  if (!Array.isArray(captions)) return awards;
+/**
+ * Fold the model's award response back onto the facts.
+ *
+ * `emoji`, `title` and `detail` are presentation and may be replaced wholesale.
+ * `id` and `name` never are — the winner is whoever the code said it was, so a
+ * model that renames "Night Owl" to something better still cannot hand the
+ * award to the wrong person.
+ *
+ * When curating, the model also decides *which* awards run and in what order;
+ * anything unusable falls back to the lineup the code picked.
+ */
+function mergeAwards(
+  offered: Superlative[],
+  fallback: Superlative[],
+  response: unknown,
+  opts: { curating: boolean; awardLimit: number }
+): Superlative[] {
+  if (!Array.isArray(response)) return fallback;
 
-  const byTitle = new Map<string, string>();
-  for (const c of captions) {
-    if (!c || typeof c !== 'object') continue;
-    const title = (c as any).title;
-    const detail = clean((c as any).detail, MAX_DETAIL);
-    if (typeof title === 'string' && detail) byTitle.set(titleKey(title), detail);
+  const byId = new Map<string, Superlative>();
+  const byTitle = new Map<string, Superlative>();
+  for (const a of offered) {
+    if (a.id) byId.set(a.id, a);
+    byTitle.set(titleKey(a.title), a);
   }
-  if (byTitle.size === 0) return awards;
 
-  return awards.map((a) => {
-    const next = byTitle.get(titleKey(a.title));
-    return next ? { ...a, detail: next } : a;
-  });
+  const seen = new Set<string>();
+  const picked: Superlative[] = [];
+  for (const entry of response) {
+    if (!entry || typeof entry !== 'object') continue;
+    const e = entry as Record<string, unknown>;
+    const source =
+      (typeof e.id === 'string' ? byId.get(e.id) : undefined) ??
+      (typeof e.title === 'string' ? byTitle.get(titleKey(e.title)) : undefined);
+    if (!source) continue;
+
+    const key = source.id ?? titleKey(source.title);
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    picked.push({
+      ...source,
+      emoji: cleanEmoji(e.emoji) ?? source.emoji,
+      title: clean(e.title, MAX_AWARD_TITLE) ?? source.title,
+      detail: clean(e.detail, MAX_DETAIL) ?? source.detail
+    });
+    if (opts.curating && picked.length >= opts.awardLimit) break;
+  }
+
+  if (picked.length === 0) return fallback;
+  if (!opts.curating) {
+    // Not curating: keep the code's lineup and order, only take the rewording.
+    const rewritten = new Map(picked.map((p) => [p.id ?? titleKey(p.title), p]));
+    return fallback.map((a) => rewritten.get(a.id ?? titleKey(a.title)) ?? a);
+  }
+  return picked;
+}
+
+/**
+ * Award emoji are rendered on their own, so a model that returns a sentence,
+ * an empty string or a pile of glyphs shouldn't get through. Accepts one or two
+ * characters of actual symbol.
+ */
+function cleanEmoji(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  const chars = [...trimmed];
+  if (chars.length > 4) return undefined;
+  if (/[a-zA-Z0-9<>]/.test(trimmed)) return undefined;
+  return trimmed;
 }
 
 /**
@@ -415,7 +527,7 @@ function clean(value: unknown, max: number): string | undefined {
  */
 function parseJsonResponse(
   raw: string
-): { intro?: unknown; subject?: unknown; preheader?: unknown; captions?: unknown; summaries?: unknown } | null {
+): { intro?: unknown; subject?: unknown; preheader?: unknown; awards?: unknown; summaries?: unknown } | null {
   const text = raw.replace(/^\s*```(?:json)?/i, '').replace(/```\s*$/, '').trim();
   const candidates = [text];
 
