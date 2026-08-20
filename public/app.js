@@ -15,7 +15,9 @@ const NUMERIC_FIELDS = new Set([
   'enable_upcoming', 'upcoming_replaces_recent',
   'greeting_enabled', 'request_enabled',
   'enable_superlatives', 'enable_flex_bar', 'uptime_enabled',
-  'seasonal_theme_enabled', 'enable_fun_stats'
+  'seasonal_theme_enabled', 'enable_fun_stats',
+  'enable_ai_captions', 'ai_write_intro', 'ai_write_subject', 'ai_rewrite_summaries', 'ai_timeout_ms',
+  'ai_daily_call_cap', 'ai_monthly_token_cap', 'ai_max_output_tokens', 'ai_cache_ttl_min'
 ]);
 
 const BOOL_FIELDS = new Set([
@@ -26,7 +28,8 @@ const BOOL_FIELDS = new Set([
   'enable_upcoming', 'upcoming_replaces_recent',
   'greeting_enabled', 'request_enabled',
   'enable_superlatives', 'enable_flex_bar', 'uptime_enabled',
-  'seasonal_theme_enabled', 'enable_fun_stats'
+  'seasonal_theme_enabled', 'enable_fun_stats',
+  'enable_ai_captions', 'ai_write_intro', 'ai_write_subject', 'ai_rewrite_summaries'
 ]);
 
 // Labels + canonical order for the drag-to-reorder section list.
@@ -300,6 +303,7 @@ async function saveChanges() {
     $('#save-status').className = 'hint success';
     setTimeout(() => { $('#save-status').textContent = ''; }, 2500);
     loadSchedule();
+    loadAiUsage();
   } catch (err) {
     $('#save-status').textContent = `Save failed: ${err.message}`;
     $('#save-status').className = 'hint error';
@@ -828,6 +832,73 @@ function bindBroadcastActions() {
   });
 }
 
+// --- AI spend usage ---------------------------------------------------------
+
+function meter(label, used, cap, unit) {
+  if (!cap || cap <= 0) {
+    return `
+      <div>
+        <div class="meter-label"><span>${label}</span>
+          <span class="meter-value">${used.toLocaleString()} ${unit} · no cap</span></div>
+        <div class="meter-track"></div>
+      </div>`;
+  }
+  const pct = Math.min(100, Math.round((used / cap) * 100));
+  const cls = pct >= 100 ? 'full' : pct >= 75 ? 'warn' : '';
+  return `
+    <div>
+      <div class="meter-label"><span>${label}</span>
+        <span class="meter-value">${used.toLocaleString()} / ${cap.toLocaleString()} ${unit} (${pct}%)</span></div>
+      <div class="meter-track"><div class="meter-fill ${cls}" style="width:${pct}%"></div></div>
+    </div>`;
+}
+
+async function loadAiUsage() {
+  const body = $('#ai-usage-body');
+  const note = $('#ai-usage-note');
+  if (!body) return;
+  try {
+    const u = await api('/api/ai/usage');
+    body.innerHTML = `
+      <div class="meter-row">
+        ${meter('Billed calls, last 24h', u.callsLast24h, u.dailyCallCap, 'calls')}
+        ${meter('Tokens, last 30 days', u.tokensLast30d, u.monthlyTokenCap, 'tokens')}
+      </div>
+      <div class="usage-facts">
+        <div class="usage-fact"><span class="n">${u.callsLast30d.toLocaleString()}</span><span class="k">Calls / 30d</span></div>
+        <div class="usage-fact"><span class="n">${u.promptTokensLast30d.toLocaleString()}</span><span class="k">Prompt tokens</span></div>
+        <div class="usage-fact"><span class="n">${u.completionTokensLast30d.toLocaleString()}</span><span class="k">Output tokens</span></div>
+        <div class="usage-fact"><span class="n">${u.cacheHitsLast30d.toLocaleString()}</span><span class="k">Served from cache</span></div>
+        <div class="usage-fact"><span class="n">${u.blockedLast30d.toLocaleString()}</span><span class="k">Blocked by cap</span></div>
+        <div class="usage-fact"><span class="n">${u.errorsLast30d.toLocaleString()}</span><span class="k">Failed</span></div>
+      </div>`;
+    const bits = [];
+    if (!u.enabled) bits.push('AI copy is currently off, so nothing new is being billed.');
+    if (u.lastCallAt) bits.push(`Last call ${new Date(u.lastCallAt + 'Z').toLocaleString()}.`);
+    if (u.errorsLastHour >= 5) bits.push(`${u.errorsLastHour} failures in the last hour — requests are paused until they age out.`);
+    else if (u.blockedLast30d > 0) bits.push('Blocked calls fell back to the standard wording — raise a cap if that was unintended.');
+    note.textContent = bits.join(' ');
+  } catch (err) {
+    body.innerHTML = `<span class="hint error">Could not load usage: ${escapeHtml(err.message)}</span>`;
+    note.textContent = '';
+  }
+}
+
+function bindAiUsage() {
+  const refresh = $('#ai-usage-refresh');
+  if (!refresh) return;
+  refresh.addEventListener('click', loadAiUsage);
+  $('#ai-cache-clear').addEventListener('click', async () => {
+    await api('/api/ai/cache/clear', { method: 'POST' });
+    await loadAiUsage();
+  });
+  $('#ai-usage-reset').addEventListener('click', async () => {
+    if (!confirm('Reset the AI usage counters? This clears the rolling windows the caps are measured against.')) return;
+    await api('/api/ai/usage/reset', { method: 'POST' });
+    await loadAiUsage();
+  });
+}
+
 (async function init() {
   bindNav();
   bindFieldHandlers();
@@ -835,6 +906,7 @@ function bindBroadcastActions() {
   bindBroadcastActions();
   bindSectionOrder();
   bindDeviceToggles();
+  bindAiUsage();
   try {
     const s = await api('/api/settings');
     applySettings(s);
@@ -842,6 +914,7 @@ function bindBroadcastActions() {
     await loadRecipients();
     await loadBroadcastRecipients();
     await loadHistory();
+    await loadAiUsage();
     refreshPreview();
   } catch (err) {
     console.error(err);

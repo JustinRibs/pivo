@@ -482,3 +482,72 @@ textarea { resize: vertical; min-height: 70px; font-family: inherit; }
   .row { grid-template-columns: 1fr; }
   .logo-block { grid-template-columns: 1fr; }
 }
+
+/* --- AI spend usage panel -------------------------------------------------- */
+.ai-usage {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.ai-usage-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.ai-usage-head h4 {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.ai-usage-actions { display: flex; gap: 6px; }
+.ai-usage-actions .btn { padding: 5px 10px; font-size: 12px; }
+
+.meter-row { display: flex; flex-direction: column; gap: 14px; }
+.meter-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.meter-label .meter-value { color: var(--muted); font-variant-numeric: tabular-nums; }
+.meter-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.meter-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+  transition: width 0.25s ease;
+}
+.meter-fill.warn { background: #f59e0b; }
+.meter-fill.full { background: var(--danger); }
+
+.usage-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.usage-fact { display: flex; flex-direction: column; gap: 2px; }
+.usage-fact .n { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.usage-fact .k {
+  font-size: 10.5px;
+  color: var(--muted);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-weight: 600;
+}

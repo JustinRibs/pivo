@@ -38,6 +38,25 @@ CREATE TABLE IF NOT EXISTS cloudinary_uploads (
   url         TEXT NOT NULL,
   created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS ai_usage (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  called_at         TEXT NOT NULL DEFAULT (datetime('now')),
+  source            TEXT NOT NULL DEFAULT 'send',
+  provider          TEXT NOT NULL DEFAULT '',
+  model             TEXT NOT NULL DEFAULT '',
+  prompt_tokens     INTEGER NOT NULL DEFAULT 0,
+  completion_tokens INTEGER NOT NULL DEFAULT 0,
+  status            TEXT NOT NULL DEFAULT 'ok'
+);
+
+CREATE INDEX IF NOT EXISTS ai_usage_called_at ON ai_usage (called_at);
+
+CREATE TABLE IF NOT EXISTS ai_cache (
+  hash        TEXT PRIMARY KEY,
+  response    TEXT NOT NULL,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
 `);
 
 // --- Migrations -------------------------------------------------------------
@@ -100,6 +119,22 @@ const DEFAULTS: Settings = {
   ]),
 
   enable_superlatives: 0,
+
+  enable_ai_captions: 0,
+  ai_write_intro: 0,
+  ai_provider: 'openai',
+  ai_base_url: '',
+  ai_model: '',
+  ai_api_key: '',
+  ai_extra_instructions: '',
+  ai_timeout_ms: 30000,
+  ai_ollama_keep_alive: '0s',
+  ai_write_subject: 0,
+  ai_rewrite_summaries: 0,
+  ai_daily_call_cap: 25,
+  ai_monthly_token_cap: 250000,
+  ai_max_output_tokens: 700,
+  ai_cache_ttl_min: 360,
 
   enable_flex_bar: 0,
   uptime_enabled: 0,
@@ -273,4 +308,133 @@ export function lookupCloudinaryUrl(publicId: string): string | undefined {
 
 export function saveCloudinaryUrl(publicId: string, url: string): void {
   cloudinarySaveStmt.run(publicId, url);
+}
+
+// --- AI spend guards --------------------------------------------------------
+// Two independent brakes on API cost:
+//
+//   1. `ai_cache` — identical requests (same provider, model, prompt and output
+//      ceiling) reuse the previous response for `ai_cache_ttl_min` minutes. The
+//      newsletter preview recomposes on every page load, so without this a
+//      tuning session is one billable call per refresh.
+//   2. `ai_usage` — every attempt is recorded, and the caps are enforced against
+//      rolling windows before the next request goes out. Rolling rather than
+//      calendar windows so a cap can't be reset by waiting for midnight, and so
+//      the numbers don't depend on the container's timezone.
+//
+// Both tables are additive: older builds of pivo never read them, so rolling
+// back leaves them sitting harmlessly on disk.
+
+const AI_USAGE_KEEP = 2000;
+
+export interface AiUsageEntry {
+  source: 'send' | 'preview' | 'test';
+  provider: string;
+  model: string;
+  prompt_tokens: number;
+  completion_tokens: number;
+  /**
+   * `ok` billed a live request; `cache` reused a stored response; `blocked` was
+   * stopped by a cap before any request was made. Only `ok` consumes budget.
+   */
+  status: 'ok' | 'cache' | 'error' | 'blocked';
+}
+
+export interface AiUsageSummary {
+  callsLast24h: number;
+  tokensLast24h: number;
+  callsLast30d: number;
+  promptTokensLast30d: number;
+  completionTokensLast30d: number;
+  tokensLast30d: number;
+  blockedLast30d: number;
+  errorsLast30d: number;
+  errorsLastHour: number;
+  cacheHitsLast30d: number;
+  lastCallAt: string | null;
+}
+
+const insertAiUsage = db.prepare(
+  'INSERT INTO ai_usage (source, provider, model, prompt_tokens, completion_tokens, status)' +
+    ' VALUES (?, ?, ?, ?, ?, ?)'
+);
+
+export function recordAiUsage(entry: AiUsageEntry): void {
+  insertAiUsage.run(
+    entry.source,
+    entry.provider,
+    entry.model,
+    Math.max(0, Math.round(entry.prompt_tokens || 0)),
+    Math.max(0, Math.round(entry.completion_tokens || 0)),
+    entry.status
+  );
+  db.exec(`DELETE FROM ai_usage WHERE id NOT IN (SELECT id FROM ai_usage ORDER BY id DESC LIMIT ${AI_USAGE_KEEP})`);
+}
+
+/**
+ * Rolling-window totals. Only `status = 'ok'` rows count toward the caps —
+ * a blocked or failed call costs nothing, so it must not consume budget.
+ */
+export function getAiUsageSummary(): AiUsageSummary {
+  const row = db
+    .prepare(
+      `SELECT
+         COALESCE(SUM(CASE WHEN status = 'ok'      AND called_at >= datetime('now', '-1 day')   THEN 1 ELSE 0 END), 0) AS calls24,
+         COALESCE(SUM(CASE WHEN status = 'ok'      AND called_at >= datetime('now', '-1 day')   THEN prompt_tokens + completion_tokens ELSE 0 END), 0) AS tokens24,
+         COALESCE(SUM(CASE WHEN status = 'ok'      AND called_at >= datetime('now', '-30 days') THEN 1 ELSE 0 END), 0) AS calls30,
+         COALESCE(SUM(CASE WHEN status = 'ok'      AND called_at >= datetime('now', '-30 days') THEN prompt_tokens ELSE 0 END), 0) AS prompt30,
+         COALESCE(SUM(CASE WHEN status = 'ok'      AND called_at >= datetime('now', '-30 days') THEN completion_tokens ELSE 0 END), 0) AS completion30,
+         COALESCE(SUM(CASE WHEN status = 'blocked' AND called_at >= datetime('now', '-30 days') THEN 1 ELSE 0 END), 0) AS blocked30,
+         COALESCE(SUM(CASE WHEN status = 'error'   AND called_at >= datetime('now', '-30 days') THEN 1 ELSE 0 END), 0) AS errors30,
+         COALESCE(SUM(CASE WHEN status = 'error'   AND called_at >= datetime('now', '-1 hour')   THEN 1 ELSE 0 END), 0) AS errors1h,
+         MAX(called_at) AS last_at
+       FROM ai_usage`
+    )
+    .get() as any;
+
+  const cacheHits = db
+    .prepare("SELECT COUNT(*) AS n FROM ai_usage WHERE status = 'cache' AND called_at >= datetime('now', '-30 days')")
+    .get() as { n: number };
+
+  return {
+    callsLast24h: row.calls24,
+    tokensLast24h: row.tokens24,
+    callsLast30d: row.calls30,
+    promptTokensLast30d: row.prompt30,
+    completionTokensLast30d: row.completion30,
+    tokensLast30d: row.prompt30 + row.completion30,
+    blockedLast30d: row.blocked30,
+    errorsLast30d: row.errors30,
+    errorsLastHour: row.errors1h,
+    cacheHitsLast30d: cacheHits.n,
+    lastCallAt: row.last_at || null
+  };
+}
+
+export function resetAiUsage(): void {
+  db.exec('DELETE FROM ai_usage');
+}
+
+// --- AI response cache ------------------------------------------------------
+
+const aiCacheLookup = db.prepare("SELECT response FROM ai_cache WHERE hash = ? AND created_at >= datetime('now', ?)");
+const aiCacheSave = db.prepare(
+  "INSERT INTO ai_cache (hash, response) VALUES (?, ?)" +
+    " ON CONFLICT(hash) DO UPDATE SET response = excluded.response, created_at = datetime('now')"
+);
+
+export function lookupAiCache(hash: string, ttlMinutes: number): string | undefined {
+  if (ttlMinutes <= 0) return undefined;
+  const row = aiCacheLookup.get(hash, `-${Math.round(ttlMinutes)} minutes`) as { response: string } | undefined;
+  return row?.response;
+}
+
+export function saveAiCache(hash: string, response: string): void {
+  aiCacheSave.run(hash, response);
+  // Bound the table — entries are only useful inside the TTL anyway.
+  db.exec("DELETE FROM ai_cache WHERE created_at < datetime('now', '-7 days')");
+}
+
+export function clearAiCache(): void {
+  db.exec('DELETE FROM ai_cache');
 }
