@@ -138,7 +138,7 @@ export async function sendComposed(
 export async function runNewsletter(opts: { dryRun?: boolean; testRecipient?: string } = {}): Promise<{ sent: number; failed: number; errors: string[]; recipientCount: number; durationMs: number }> {
   const start = Date.now();
   const settings = getSettings();
-  const composed = await composeNewsletter(settings);
+  const composed = await composeNewsletter(settings, { aiSource: opts.testRecipient ? 'test' : 'send' });
 
   let recipients: SendableRecipient[];
   if (opts.testRecipient) {

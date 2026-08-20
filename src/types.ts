@@ -65,6 +65,25 @@ export interface Settings {
   ai_timeout_ms: number;
   /** Ollama only — how long to keep the model resident after generating. */
   ai_ollama_keep_alive: string;
+  /** Write the subject line and inbox preview text from the edition's contents. */
+  ai_write_subject: number;   // 0/1
+  /**
+   * Rewrite the recently-added blurbs. The model compresses the synopsis Plex
+   * already gave us — it is never asked to describe a title from its own
+   * knowledge, which is where it would start inventing plot.
+   */
+  ai_rewrite_summaries: number; // 0/1
+
+  // Spend guards. Caps are enforced against rolling windows before a request is
+  // sent; hitting one falls back to the templated wording, same as any failure.
+  /** Max billed calls in any rolling 24h. 0 disables the cap. */
+  ai_daily_call_cap: number;
+  /** Max prompt+completion tokens in any rolling 30 days. 0 disables the cap. */
+  ai_monthly_token_cap: number;
+  /** Per-request output ceiling handed to the provider. */
+  ai_max_output_tokens: number;
+  /** Reuse an identical response for this many minutes. 0 disables the cache. */
+  ai_cache_ttl_min: number;
 
   // Content
   recently_added_count: number;

@@ -7,10 +7,13 @@ import fastifyMultipart from '@fastify/multipart';
 import { ADMIN_PASSWORD, PORT, UPLOADS_DIR } from './config.js';
 import {
   addRecipient,
+  clearAiCache,
   deactivateRecipient,
   deleteRecipient,
   findRecipientByToken,
+  getAiUsageSummary,
   getSettings,
+  resetAiUsage,
   importRecipient,
   listRecipients,
   listActiveRecipients,
@@ -98,7 +101,13 @@ fastify.put<{ Body: Partial<Settings> }>('/api/settings', async (req) => {
     'enable_fun_stats',
     'enable_ai_captions',
     'ai_write_intro',
+    'ai_write_subject',
+    'ai_rewrite_summaries',
     'ai_timeout_ms',
+    'ai_daily_call_cap',
+    'ai_monthly_token_cap',
+    'ai_max_output_tokens',
+    'ai_cache_ttl_min',
     'cloudinary_enabled',
     'radarr_enabled',
     'sonarr_enabled',
@@ -319,12 +328,40 @@ fastify.post<{ Body: { email: string } }>('/api/test/send', async (req, reply) =
   }
 });
 
+// --- AI usage ---------------------------------------------------------------
+// Rolling-window spend, so the owner can watch cost during a trial rather than
+// discovering it on next month's invoice.
+
+fastify.get('/api/ai/usage', async () => {
+  const s = getSettings();
+  const usage = getAiUsageSummary();
+  return {
+    ...usage,
+    dailyCallCap: s.ai_daily_call_cap,
+    monthlyTokenCap: s.ai_monthly_token_cap,
+    cacheTtlMin: s.ai_cache_ttl_min,
+    enabled: !!s.enable_ai_captions
+  };
+});
+
+/** Drop cached responses so the next compose re-asks the model. */
+fastify.post('/api/ai/cache/clear', async () => {
+  clearAiCache();
+  return { ok: true };
+});
+
+/** Clear the rolling counters — the escape hatch for a cap set too low. */
+fastify.post('/api/ai/usage/reset', async () => {
+  resetAiUsage();
+  return { ok: true, ...getAiUsageSummary() };
+});
+
 // --- Preview ----------------------------------------------------------------
 
 fastify.get('/api/preview', async (_req, reply) => {
   const settings = getSettings();
   try {
-    const composed = await composeNewsletter(settings);
+    const composed = await composeNewsletter(settings, { aiSource: 'preview' });
     const previewCtx = {
       unsubscribeUrl: buildPreviewUnsubscribeUrl(settings.public_url),
       name: 'Alex',

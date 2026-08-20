@@ -404,6 +404,29 @@
             </label>
           </div>
           <div class="row">
+            <label class="checkbox">
+              <input data-field="ai_write_subject" type="checkbox" />
+              <span>Write the subject line and inbox preview text</span>
+            </label>
+            <label class="checkbox">
+              <input data-field="ai_rewrite_summaries" type="checkbox" />
+              <span>Rewrite the recently-added blurbs</span>
+            </label>
+          </div>
+          <p class="hint">
+            The subject is otherwise a fixed template and the inbox preview line never changes at all, so every edition looks
+            identical in a crowded inbox — letting the model name what's actually in this one is the difference between a mail
+            that gets opened and one that doesn't. If a call fails or a cap blocks it, your <strong>Newsletter subject</strong>
+            template from the Schedule tab is used instead.
+          </p>
+          <p class="hint">
+            Blurb rewriting compresses the synopsis Plex already stores into one line that fits without being chopped mid-word.
+            The model is given that synopsis and told to work only from it — it is never asked what a title is about, which is
+            where it would start inventing plot. Needs <strong>Show summaries</strong> on in the Content tab, applies to movies
+            and albums (TV episodes carry no synopsis), and is the one option that noticeably grows the prompt: up to 12 items,
+            each synopsis trimmed to 300 characters before it is sent.
+          </p>
+          <div class="row">
             <label>Provider
               <select data-field="ai_provider">
                 <option value="openai">OpenAI-compatible</option>
@@ -440,6 +463,48 @@
             <code>0s</code> unloads the model from VRAM the moment the newsletter is composed, which matters if the same GPU also
             handles Plex transcodes. Leave the API key blank for local backends.
           </p>
+
+          <h3>Spend limits</h3>
+          <p class="hint">
+            Caps are checked <em>before</em> each request and measured over rolling windows, so they can't be reset by waiting for
+            midnight. Hitting one is not an error — the newsletter just falls back to the standard wording, same as a timeout.
+            Set either to <code>0</code> to remove that limit. Local Ollama models cost nothing to run; the counters still tick so
+            you can spot a runaway prompt.
+          </p>
+          <div class="row">
+            <label>Max calls per 24h
+              <input data-field="ai_daily_call_cap" type="number" min="0" placeholder="25" />
+            </label>
+            <label>Max tokens per 30 days
+              <input data-field="ai_monthly_token_cap" type="number" min="0" placeholder="250000" />
+            </label>
+          </div>
+          <div class="row">
+            <label>Max output tokens per call
+              <input data-field="ai_max_output_tokens" type="number" min="1" max="4096" placeholder="700" />
+            </label>
+            <label>Reuse identical responses for (minutes)
+              <input data-field="ai_cache_ttl_min" type="number" min="0" placeholder="360" />
+            </label>
+          </div>
+          <p class="hint">
+            The preview recomposes the whole newsletter on every page load. Response reuse is what stops a tuning session from
+            billing once per refresh — an identical provider, model, prompt and output ceiling is served from cache. Changing the
+            tone direction changes the prompt, so you still see the effect of an edit immediately.
+          </p>
+
+          <div class="ai-usage" id="ai-usage">
+            <div class="ai-usage-head">
+              <h4>Usage</h4>
+              <div class="ai-usage-actions">
+                <button class="btn btn-ghost" id="ai-usage-refresh" type="button">Refresh</button>
+                <button class="btn btn-ghost" id="ai-cache-clear" type="button">Clear cache</button>
+                <button class="btn btn-danger" id="ai-usage-reset" type="button">Reset counters</button>
+              </div>
+            </div>
+            <div id="ai-usage-body" class="muted">Loading…</div>
+            <p class="hint" id="ai-usage-note"></p>
+          </div>
 
           <h3>Uptime badge</h3>
           <div class="row">

@@ -21,6 +21,8 @@ export interface TemplateData {
   funStat?: string;
   /** AI-written opener, rendered under the header text. */
   aiIntro?: string;
+  /** AI-written inbox preview text, shown next to the subject line. */
+  aiPreheader?: string;
   /** Seasonal accent override (e.g. spooky orange in October). Falls back to brand_accent. */
   accentOverride?: string;
   /** Seasonal emoji shown in the date eyebrow. */
@@ -182,7 +184,7 @@ function accentRule(accent: string): string {
 }
 
 export function buildMjml(data: TemplateData): string {
-  const { settings, movies, shows, music, topMovies, topTV, topUsers, stats, upcomingMovies, upcomingShows, upcomingWindowDays, superlatives, flex, funStat, aiIntro, accentOverride, seasonalEmoji, generatedDate, logoSrc, includeUnsubscribe } = data;
+  const { settings, movies, shows, music, topMovies, topTV, topUsers, stats, upcomingMovies, upcomingShows, upcomingWindowDays, superlatives, flex, funStat, aiIntro, aiPreheader, accentOverride, seasonalEmoji, generatedDate, logoSrc, includeUnsubscribe } = data;
   const accent = accentOverride || settings.brand_accent || '#e5a00d';
   const accentLight = lightenHex(accent, 0.4);
   const brandName = esc(settings.brand_name || 'Pivo');
@@ -332,7 +334,7 @@ export function buildMjml(data: TemplateData): string {
   return `<mjml>
   <mj-head>
     <mj-title>${brandName}</mj-title>
-    <mj-preview>${brandName} — recently added on Plex</mj-preview>
+    <mj-preview>${aiPreheader ? esc(aiPreheader) : `${brandName} — recently added on Plex`}</mj-preview>
     <mj-font name="Inter" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
     <mj-attributes>
       <mj-all font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" />

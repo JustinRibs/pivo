@@ -4,7 +4,7 @@ import mjml2html from 'mjml';
 import { TautulliClient, formatDuration } from '../tautulli.js';
 import { RadarrClient, SonarrClient, fetchRemoteImage, type UpcomingEpisode } from '../arr.js';
 import { fetchUptimePercent } from '../uptime.js';
-import { polishNewsletter } from '../ai.js';
+import { polishNewsletter, type AiCallSource, type AiSummaryItem } from '../ai.js';
 import { UPLOADS_DIR } from '../config.js';
 import { lookupCloudinaryUrl } from '../db.js';
 import { buildPublicId, cloudinaryConfigFromSettings, uploadImageBuffer, type CloudinaryConfig } from '../cloudinary.js';
@@ -21,6 +21,8 @@ interface Attachment {
 export interface ComposeOptions {
   /** When true, fetch zero images and use placeholder posters. Useful for fast previews. */
   skipImages?: boolean;
+  /** Which path triggered this compose. Recorded against the AI spend caps. */
+  aiSource?: AiCallSource;
 }
 
 export async function composeNewsletter(settings: Settings, opts: ComposeOptions = {}): Promise<ComposedNewsletter> {
@@ -400,21 +402,52 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
   const includeUnsubscribe = !!settings.public_url;
 
   // --- AI-written copy -------------------------------------------------------
-  // Rephrases the award captions and, optionally, writes the intro. The model
-  // is handed only already-computed facts, and `polishNewsletter` swallows its
-  // own errors — so this can never block or corrupt a send.
+  // Rephrases the award captions and, optionally, writes the intro, the inbox
+  // subject/preview line, and the recently-added blurbs. The model is handed
+  // only already-computed facts — including, for blurbs, the synopsis Plex
+  // already gave us — and `polishNewsletter` swallows its own errors, so this
+  // can never block or corrupt a send.
   let aiIntro: string | undefined;
+  let aiSubject: string | undefined;
+  let aiPreheader: string | undefined;
   if (settings.enable_ai_captions) {
-    const polished = await polishNewsletter(settings, superlatives ?? [], {
-      windowDays: settings.stats_window_days,
-      totalPlays: stats?.totalPlays,
-      totalDuration: stats?.totalDuration ?? (totalWatchSec > 0 ? formatDuration(totalWatchSec) : undefined),
-      newMovies: movies.length,
-      newShows: shows.length,
-      newMusic: music.length
-    });
+    // Only movies and albums carry a synopsis; TV episodes omit theirs by
+    // design. Items keep a reference so the rewrite can be merged back in place.
+    const summaryTargets: { id: string; item: RenderedItem }[] = [];
+    if (settings.ai_rewrite_summaries) {
+      movies.forEach((m, i) => { if (m.summary?.trim()) summaryTargets.push({ id: `m${i + 1}`, item: m }); });
+      music.forEach((a, i) => { if (a.summary?.trim()) summaryTargets.push({ id: `a${i + 1}`, item: a }); });
+    }
+    const items: AiSummaryItem[] = summaryTargets.map(({ id, item }) => ({
+      id,
+      kind: id.startsWith('m') ? 'movie' : 'album',
+      title: item.title,
+      year: item.year,
+      summary: item.summary!.trim()
+    }));
+
+    const polished = await polishNewsletter(
+      settings,
+      superlatives ?? [],
+      {
+        windowDays: settings.stats_window_days,
+        totalPlays: stats?.totalPlays,
+        totalDuration: stats?.totalDuration ?? (totalWatchSec > 0 ? formatDuration(totalWatchSec) : undefined),
+        newMovies: movies.length,
+        newShows: shows.length,
+        newMusic: music.length
+      },
+      { source: opts.aiSource ?? 'send', items }
+    );
     if (polished.awards.length > 0) superlatives = polished.awards;
     aiIntro = polished.intro;
+    aiSubject = polished.subject;
+    aiPreheader = polished.preheader;
+    // Anything the model skipped or garbled keeps its original Plex synopsis.
+    for (const { id, item } of summaryTargets) {
+      const rewritten = polished.summaries[id];
+      if (rewritten) item.summary = rewritten;
+    }
   }
 
   const tplData: TemplateData = {
@@ -433,6 +466,7 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
     flex,
     funStat,
     aiIntro,
+    aiPreheader,
     accentOverride: season?.accent,
     seasonalEmoji: season?.emoji,
     generatedDate,
@@ -450,7 +484,8 @@ export async function composeNewsletter(settings: Settings, opts: ComposeOptions
     for (const e of result.errors) console.warn('MJML warning:', e.formattedMessage);
   }
 
-  const subject = (settings.newsletter_subject || 'New on Plex').replace(/\{\{date\}\}/g, generatedDate);
+  const subject =
+    aiSubject || (settings.newsletter_subject || 'New on Plex').replace(/\{\{date\}\}/g, generatedDate);
   const text = buildPlainText(tplData);
 
   return { subject, html: result.html, text, attachments };
