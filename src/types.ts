@@ -65,6 +65,13 @@ export interface Settings {
   ai_timeout_ms: number;
   /** Ollama only — how long to keep the model resident after generating. */
   ai_ollama_keep_alive: string;
+  /**
+   * OpenAI-compatible only. Reasoning models bill their thinking against the
+   * completion budget, and rephrasing pre-computed facts needs none of it —
+   * so this defaults to `none`. Blank omits the parameter entirely; endpoints
+   * that reject it have it dropped automatically on the first call.
+   */
+  ai_reasoning_effort: string;
   /** Write the subject line and inbox preview text from the edition's contents. */
   ai_write_subject: number;   // 0/1
   /**
