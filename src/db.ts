@@ -129,6 +129,7 @@ const DEFAULTS: Settings = {
   ai_extra_instructions: '',
   ai_timeout_ms: 30000,
   ai_ollama_keep_alive: '0s',
+  ai_reasoning_effort: 'none',
   ai_write_subject: 0,
   ai_rewrite_summaries: 0,
   ai_daily_call_cap: 25,

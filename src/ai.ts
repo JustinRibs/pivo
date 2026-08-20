@@ -263,7 +263,17 @@ function requestHash(
 ): string {
   return crypto
     .createHash('sha256')
-    .update(JSON.stringify([provider, baseUrlFor(settings, provider), settings.ai_model, system, user, maxOutputTokens]))
+    .update(
+      JSON.stringify([
+        provider,
+        baseUrlFor(settings, provider),
+        settings.ai_model,
+        system,
+        user,
+        maxOutputTokens,
+        (settings.ai_reasoning_effort || '').trim()
+      ])
+    )
     .digest('hex');
 }
 
@@ -450,6 +460,14 @@ async function chat(
   }
 }
 
+/** Carries the status and body so callers can react to a specific rejection. */
+class AiHttpError extends Error {
+  constructor(readonly statusCode: number, readonly body: string) {
+    super(`AI request failed: HTTP ${statusCode} ${body.slice(0, 300)}`);
+    this.name = 'AiHttpError';
+  }
+}
+
 async function post(url: string, headers: Record<string, string>, body: unknown, timeout: number) {
   const res = await request(url, {
     method: 'POST',
@@ -460,9 +478,55 @@ async function post(url: string, headers: Record<string, string>, body: unknown,
   });
   const text = await res.body.text();
   if (res.statusCode < 200 || res.statusCode >= 300) {
-    throw new Error(`AI request failed: HTTP ${res.statusCode} ${text.slice(0, 300)}`);
+    throw new AiHttpError(res.statusCode, text);
   }
   return JSON.parse(text);
+}
+
+/**
+ * Which optional parameters this endpoint will accept. Started permissive and
+ * relaxed as things get rejected — see `relaxForRejection`.
+ */
+interface OpenAiQuirks {
+  tokenParam: 'max_tokens' | 'max_completion_tokens';
+  temperature: boolean;
+  responseFormat: boolean;
+  reasoningEffort: boolean;
+}
+
+/**
+ * "OpenAI-compatible" is a spectrum, and the incompatibilities are all in the
+ * optional parameters. Newer OpenAI models reject `max_tokens` and demand
+ * `max_completion_tokens`; reasoning models often reject a custom
+ * `temperature`; small local servers frequently support neither
+ * `response_format` nor `reasoning_effort`. Rather than make the owner work out
+ * which dialect their endpoint speaks, we send the rich version and step down
+ * as it tells us what it doesn't understand.
+ *
+ * Returns a description of what was relaxed, or null when the error isn't one
+ * we can adapt to.
+ */
+function relaxForRejection(quirks: OpenAiQuirks, err: unknown): string | null {
+  if (!(err instanceof AiHttpError) || err.statusCode !== 400) return null;
+  const body = err.body.toLowerCase();
+
+  if (quirks.tokenParam === 'max_tokens' && body.includes('max_completion_tokens')) {
+    quirks.tokenParam = 'max_completion_tokens';
+    return 'using max_completion_tokens';
+  }
+  if (quirks.temperature && body.includes('temperature')) {
+    quirks.temperature = false;
+    return 'dropping temperature';
+  }
+  if (quirks.reasoningEffort && body.includes('reasoning_effort')) {
+    quirks.reasoningEffort = false;
+    return 'dropping reasoning_effort';
+  }
+  if (quirks.responseFormat && body.includes('response_format')) {
+    quirks.responseFormat = false;
+    return 'dropping response_format';
+  }
+  return null;
 }
 
 /** OpenAI-compatible `/chat/completions` — the generic path for most providers. */
@@ -474,23 +538,57 @@ async function openAiChat(
   maxOutputTokens: number
 ): Promise<ChatResult> {
   const key = (settings.ai_api_key || '').trim();
-  const json = await post(
-    `${baseUrlFor(settings, 'openai')}/chat/completions`,
-    key ? { authorization: `Bearer ${key}` } : {},
-    {
+  const url = `${baseUrlFor(settings, 'openai')}/chat/completions`;
+  const headers: Record<string, string> = key ? { authorization: `Bearer ${key}` } : {};
+  const effort = (settings.ai_reasoning_effort || '').trim();
+
+  const quirks: OpenAiQuirks = {
+    tokenParam: 'max_tokens',
+    temperature: true,
+    responseFormat: true,
+    reasoningEffort: !!effort
+  };
+
+  const buildBody = () => {
+    const body: Record<string, unknown> = {
       model: settings.ai_model,
-      max_tokens: maxOutputTokens,
-      temperature: 0.8,
-      response_format: { type: 'json_object' },
+      [quirks.tokenParam]: maxOutputTokens,
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: user }
       ]
-    },
-    timeout
-  );
+    };
+    if (quirks.temperature) body.temperature = 0.8;
+    if (quirks.responseFormat) body.response_format = { type: 'json_object' };
+    if (quirks.reasoningEffort) body.reasoning_effort = effort;
+    return body;
+  };
+
+  // At most one retry per adaptable parameter. A 400 costs nothing and the
+  // negotiation only happens on the parameters this endpoint actually refuses.
+  let json: any;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      json = await post(url, headers, buildBody(), timeout);
+      break;
+    } catch (err) {
+      const relaxed = attempt < 4 ? relaxForRejection(quirks, err) : null;
+      if (!relaxed) throw err;
+      console.warn(`AI copy: endpoint rejected a parameter — retrying (${relaxed}).`);
+    }
+  }
+
   const content = json?.choices?.[0]?.message?.content;
   if (typeof content !== 'string') throw new Error('AI response had no message content');
+  if (!content.trim()) {
+    // Reasoning models can burn the whole completion budget thinking and
+    // return nothing. Say so plainly — the ceiling is the fix, not the model.
+    const reasoning = Number(json?.usage?.completion_tokens_details?.reasoning_tokens) || 0;
+    throw new Error(
+      `AI response was empty${reasoning ? ` — ${reasoning} of ${maxOutputTokens} output tokens went to reasoning` : ''}. ` +
+        'Raise "Max output tokens per call", or set reasoning effort to none.'
+    );
+  }
   return {
     text: content,
     usage: {

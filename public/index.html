@@ -454,6 +454,23 @@
               <input data-field="ai_ollama_keep_alive" type="text" placeholder="0s" />
             </label>
           </div>
+          <div class="row">
+            <label>Reasoning effort <span class="muted">(OpenAI-compatible)</span>
+              <select data-field="ai_reasoning_effort">
+                <option value="none">none — recommended</option>
+                <option value="low">low</option>
+                <option value="medium">medium</option>
+                <option value="high">high</option>
+                <option value="">don't send the parameter</option>
+              </select>
+            </label>
+          </div>
+          <p class="hint">
+            Reasoning models charge their thinking to the same output budget as the answer, so a model left on its default
+            effort can spend the entire <strong>max output tokens</strong> thinking and return nothing. Writing one-line captions
+            from facts that are already correct needs no reasoning at all, so <code>none</code> is both cheaper and better here.
+            Endpoints that don't understand the parameter have it dropped automatically.
+          </p>
           <label>Tone direction <span class="muted">(optional)</span>
             <textarea data-field="ai_extra_instructions" rows="3" placeholder="e.g. Dry and deadpan. Roast people gently. Never use exclamation marks."></textarea>
           </label>
