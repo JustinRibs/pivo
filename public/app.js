@@ -150,6 +150,11 @@ async function loadRecipients() {
   const tbody = $('#recipients-table tbody');
   tbody.innerHTML = '';
   const recipients = await api('/api/recipients');
+  const badge = $('#nav-recipient-count');
+  if (badge) {
+    badge.textContent = recipients.length;
+    badge.hidden = recipients.length === 0;
+  }
   if (recipients.length === 0) {
     const tr = document.createElement('tr');
     tr.innerHTML = `<td colspan="4" class="muted" style="text-align:center;padding:24px;">No recipients yet — add one above.</td>`;
@@ -301,12 +306,12 @@ async function saveChanges() {
       body: JSON.stringify(patch),
     });
     applySettings(updated);
-    $('#save-status').textContent = 'Saved.';
-    $('#save-status').className = 'hint success';
-    setTimeout(() => { $('#save-status').textContent = ''; }, 2500);
+    toast('Settings saved', 'success');
     loadSchedule();
     loadAiUsage();
+    if (currentPage() === 'dashboard') loadDashboard();
   } catch (err) {
+    toast(`Save failed: ${err.message}`, 'error');
     $('#save-status').textContent = `Save failed: ${err.message}`;
     $('#save-status').className = 'hint error';
   }
@@ -402,34 +407,179 @@ function bindDeviceToggles() {
   }
 }
 
-function bindNav() {
-  for (const link of $$('.nav-link')) {
-    link.addEventListener('click', (e) => {
-      e.preventDefault();
-      const target = link.dataset.target;
-      const el = document.getElementById(target);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        $$('.nav-link').forEach((n) => n.classList.toggle('active', n === link));
-        $('#page-title').textContent = link.textContent.trim();
-      }
-    });
+// --- Routing (hash-based pages) ----------------------------------------------
+
+const PAGES = {
+  dashboard:  { title: 'Dashboard',       sub: 'A quick read on the next edition, your audience, and recent sends.' },
+  branding:   { title: 'Branding',        sub: 'Name, colors, greeting, and logo for the newsletter shell.' },
+  content:    { title: 'Content',         sub: 'What goes into each edition, and in what order.' },
+  fun:        { title: 'Fun & stats',     sub: 'Server Wrapped awards, playful stats, and the uptime badge.' },
+  ai:         { title: 'AI copy',         sub: 'Let a language model rewrite captions, subjects, and blurbs — with hard spend caps.' },
+  tautulli:   { title: 'Tautulli',        sub: 'The source for recently added media and watch history.' },
+  arr:        { title: 'Radarr / Sonarr', sub: 'Upcoming releases for the Coming Soon section.' },
+  requests:   { title: 'Requests',        sub: 'Let recipients request content straight from the email.' },
+  images:     { title: 'Image hosting',   sub: 'Host posters on Cloudinary instead of attaching them to each email.' },
+  smtp:       { title: 'Email (SMTP)',    sub: 'Delivery credentials, sender identity, and unsubscribe links.' },
+  schedule:   { title: 'Schedule',        sub: 'When each edition goes out, and its subject line.' },
+  recipients: { title: 'Recipients',      sub: 'Manage your subscriber list, or import it from Plex.' },
+  preview:    { title: 'Preview & send',  sub: 'See the next edition exactly as recipients will, then send it.' },
+  compose:    { title: 'Compose',         sub: 'One-off broadcasts with the same branding shell.' },
+  history:    { title: 'History',         sub: 'Every newsletter and broadcast that has gone out.' },
+};
+
+let previewLoaded = false;
+
+function currentPage() {
+  const raw = location.hash.replace(/^#\/?/, '');
+  return PAGES[raw] ? raw : 'dashboard';
+}
+
+function route() {
+  const page = currentPage();
+  for (const p of $$('.page')) p.classList.toggle('active', p.dataset.page === page);
+  for (const n of $$('.nav-link')) n.classList.toggle('active', n.dataset.page === page);
+  $('#page-title').textContent = PAGES[page].title;
+  $('#page-sub').textContent = PAGES[page].sub;
+  document.title = `${PAGES[page].title} · Pivo`;
+  window.scrollTo(0, 0);
+  closeMobileNav();
+
+  // Refresh page-specific data on entry (all cheap reads).
+  if (page === 'dashboard') loadDashboard();
+  if (page === 'history') loadHistory();
+  if (page === 'ai') loadAiUsage();
+  if (page === 'preview' && !previewLoaded) {
+    previewLoaded = true; // composing the newsletter is expensive — only render once visited
+    refreshPreview();
   }
-  // Highlight on scroll
-  const sections = $$('.card');
-  const observer = new IntersectionObserver((entries) => {
-    for (const e of entries) {
-      if (e.isIntersecting) {
-        const id = e.target.id;
-        const link = $(`.nav-link[data-target="${id}"]`);
-        if (link) {
-          $$('.nav-link').forEach((n) => n.classList.toggle('active', n === link));
-          $('#page-title').textContent = link.textContent.trim();
-        }
-      }
+}
+
+function closeMobileNav() {
+  $('#sidebar').classList.remove('open');
+  $('#nav-backdrop').hidden = true;
+}
+
+function bindNav() {
+  window.addEventListener('hashchange', route);
+  $('#nav-toggle').addEventListener('click', () => {
+    const open = $('#sidebar').classList.toggle('open');
+    $('#nav-backdrop').hidden = !open;
+  });
+  $('#nav-backdrop').addEventListener('click', closeMobileNav);
+
+  window.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+      e.preventDefault();
+      saveChanges();
     }
-  }, { rootMargin: '-30% 0px -60% 0px' });
-  sections.forEach((s) => observer.observe(s));
+  });
+  window.addEventListener('beforeunload', (e) => {
+    if (state.dirty.size > 0) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+}
+
+// --- Toasts -------------------------------------------------------------------
+
+function toast(message, kind = '') {
+  const root = $('#toast-root');
+  if (!root) return;
+  const el = document.createElement('div');
+  el.className = `toast ${kind}`;
+  el.textContent = message;
+  root.appendChild(el);
+  setTimeout(() => {
+    el.classList.add('leaving');
+    setTimeout(() => el.remove(), 300);
+  }, 3200);
+}
+
+// --- Dashboard ------------------------------------------------------------------
+
+async function loadDashboard() {
+  try {
+    const [sched, recipients, log, usage] = await Promise.all([
+      api('/api/schedule'),
+      api('/api/recipients'),
+      api('/api/sendlog'),
+      api('/api/ai/usage').catch(() => null),
+    ]);
+
+    // Next edition hero
+    if (sched.enabled && sched.next) {
+      $('#dash-next-run').textContent = new Date(sched.next).toLocaleString([], {
+        weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+      });
+      $('#dash-schedule-detail').textContent = `Scheduled sending is on · ${sched.tz}`;
+    } else if (sched.enabled) {
+      $('#dash-next-run').textContent = 'Computing…';
+      $('#dash-schedule-detail').textContent = `Scheduled sending is on · ${sched.tz}`;
+    } else {
+      $('#dash-next-run').textContent = 'Not scheduled';
+      $('#dash-schedule-detail').textContent = 'Scheduled sending is off — editions only go out when you send them yourself.';
+    }
+
+    // Stat cards
+    const active = recipients.filter((r) => r.active).length;
+    $('#dash-recipients').textContent = active;
+    $('#dash-recipients-detail').textContent = `${recipients.length} total on the list`;
+
+    const last = log[0];
+    if (last) {
+      $('#dash-last-send').textContent = last.status;
+      $('#dash-last-send-detail').textContent =
+        `${new Date(last.sent_at + 'Z').toLocaleDateString()} · ${last.recipient_count} recipient${last.recipient_count === 1 ? '' : 's'}`;
+    } else {
+      $('#dash-last-send').textContent = '—';
+      $('#dash-last-send-detail').textContent = 'Nothing sent yet';
+    }
+
+    $('#dash-send-count').textContent = log.length;
+    const troubled = log.filter((l) => l.status !== 'success').length;
+    $('#dash-send-count-detail').textContent =
+      log.length === 0 ? 'No sends yet' : troubled > 0 ? `${troubled} with failures` : 'All succeeded';
+
+    if (usage) {
+      $('#dash-ai-calls').textContent = usage.callsLast24h.toLocaleString();
+      $('#dash-ai-detail').textContent = usage.enabled
+        ? `${usage.tokensLast30d.toLocaleString()} tokens over 30 days`
+        : 'AI copy is off';
+    } else {
+      $('#dash-ai-calls').textContent = '—';
+      $('#dash-ai-detail').textContent = '';
+    }
+
+    // Setup checklist
+    const s = state.settings || {};
+    const checks = [
+      { label: 'Connect Tautulli', done: !!(s.tautulli_url && s.tautulli_api_key), page: 'tautulli' },
+      { label: 'Configure SMTP delivery', done: !!(s.smtp_host && s.smtp_from_email), page: 'smtp' },
+      { label: 'Add recipients', done: active > 0, page: 'recipients' },
+      { label: 'Set a sending schedule', done: !!Number(s.schedule_enabled), page: 'schedule' },
+      { label: 'Set the public URL for unsubscribe links', done: !!s.public_url, page: 'smtp' },
+    ];
+    $('#dash-setup-list').innerHTML = checks.map((c) => `
+      <li class="${c.done ? 'done' : 'todo'}">
+        <span class="setup-dot"></span>${escapeHtml(c.label)}
+        ${c.done ? '' : `<a href="#/${c.page}">Set up →</a>`}
+      </li>`).join('');
+
+    // Recent activity
+    const recent = log.slice(0, 5);
+    $('#dash-activity').innerHTML = recent.length === 0
+      ? `<div class="dash-empty">No sends yet — open <a href="#/preview">Preview &amp; send</a> when you're ready for the first edition.</div>`
+      : `<table class="mini-table"><tbody>${recent.map((r) => `
+          <tr>
+            <td class="when">${new Date(r.sent_at + 'Z').toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</td>
+            <td><span class="kind-pill ${r.kind || 'newsletter'}">${escapeHtml(r.kind || 'newsletter')}</span></td>
+            <td>${escapeHtml(r.subject || 'Newsletter')}</td>
+            <td class="status-${r.status}">${escapeHtml(r.status)}</td>
+          </tr>`).join('')}</tbody></table>`;
+  } catch (err) {
+    console.error('dashboard load failed', err);
+  }
 }
 
 function bindActions() {
@@ -497,6 +647,7 @@ function bindActions() {
   });
 
   $('#preview-btn').addEventListener('click', refreshPreview);
+  $('#history-refresh').addEventListener('click', loadHistory);
 
   // Schedule presets
   for (const btn of $$('.presets [data-cron]')) {
@@ -915,9 +1066,8 @@ function bindAiUsage() {
     await loadSchedule();
     await loadRecipients();
     await loadBroadcastRecipients();
-    await loadHistory();
     await loadAiUsage();
-    refreshPreview();
+    route(); // render the current page (and its data) once settings are in
   } catch (err) {
     console.error(err);
     document.body.innerHTML = `<pre style="padding:24px;color:#f87171;">Failed to load: ${escapeHtml(err.message)}</pre>`;

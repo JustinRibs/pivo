@@ -12,7 +12,7 @@
   </head>
   <body>
     <div class="app">
-      <aside class="sidebar">
+      <aside class="sidebar" id="sidebar">
         <div class="brand">
           <img src="/pivo-mark.svg" alt="Pivo" class="brand-mark" />
           <div>
@@ -20,729 +20,930 @@
             <div class="brand-sub">for Plex</div>
           </div>
         </div>
-        <nav>
-          <a href="#section-branding" class="nav-link active" data-target="section-branding">Branding</a>
-          <a href="#section-tautulli" class="nav-link" data-target="section-tautulli">Tautulli</a>
-          <a href="#section-arr" class="nav-link" data-target="section-arr">Radarr / Sonarr</a>
-          <a href="#section-requests" class="nav-link" data-target="section-requests">Requests</a>
-          <a href="#section-images" class="nav-link" data-target="section-images">Image hosting</a>
-          <a href="#section-smtp" class="nav-link" data-target="section-smtp">Email (SMTP)</a>
-          <a href="#section-content" class="nav-link" data-target="section-content">Content</a>
-          <a href="#section-fun" class="nav-link" data-target="section-fun">Fun &amp; stats</a>
-          <a href="#section-schedule" class="nav-link" data-target="section-schedule">Schedule</a>
-          <a href="#section-recipients" class="nav-link" data-target="section-recipients">Recipients</a>
-          <a href="#section-preview" class="nav-link" data-target="section-preview">Preview &amp; Send</a>
-          <a href="#section-compose" class="nav-link" data-target="section-compose">Compose</a>
-          <a href="#section-history" class="nav-link" data-target="section-history">History</a>
+
+        <nav class="nav">
+          <div class="nav-group">
+            <div class="nav-group-label">Overview</div>
+            <a href="#/dashboard" class="nav-link" data-page="dashboard">
+              <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+              Dashboard
+            </a>
+          </div>
+
+          <div class="nav-group">
+            <div class="nav-group-label">Newsletter</div>
+            <a href="#/branding" class="nav-link" data-page="branding">
+              <svg viewBox="0 0 24 24"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+              Branding
+            </a>
+            <a href="#/content" class="nav-link" data-page="content">
+              <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>
+              Content
+            </a>
+            <a href="#/fun" class="nav-link" data-page="fun">
+              <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              Fun &amp; stats
+            </a>
+            <a href="#/ai" class="nav-link" data-page="ai">
+              <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+              AI copy
+            </a>
+          </div>
+
+          <div class="nav-group">
+            <div class="nav-group-label">Connections</div>
+            <a href="#/tautulli" class="nav-link" data-page="tautulli">
+              <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+              Tautulli
+            </a>
+            <a href="#/arr" class="nav-link" data-page="arr">
+              <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>
+              Radarr / Sonarr
+            </a>
+            <a href="#/requests" class="nav-link" data-page="requests">
+              <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              Requests
+            </a>
+            <a href="#/images" class="nav-link" data-page="images">
+              <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+              Image hosting
+            </a>
+            <a href="#/smtp" class="nav-link" data-page="smtp">
+              <svg viewBox="0 0 24 24"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="M22 6l-10 7L2 6"/></svg>
+              Email (SMTP)
+            </a>
+          </div>
+
+          <div class="nav-group">
+            <div class="nav-group-label">Delivery</div>
+            <a href="#/schedule" class="nav-link" data-page="schedule">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+              Schedule
+            </a>
+            <a href="#/recipients" class="nav-link" data-page="recipients">
+              <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              Recipients
+              <span class="nav-badge" id="nav-recipient-count" hidden></span>
+            </a>
+            <a href="#/preview" class="nav-link" data-page="preview">
+              <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              Preview &amp; send
+            </a>
+            <a href="#/compose" class="nav-link" data-page="compose">
+              <svg viewBox="0 0 24 24"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+              Compose
+            </a>
+            <a href="#/history" class="nav-link" data-page="history">
+              <svg viewBox="0 0 24 24"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
+              History
+            </a>
+          </div>
         </nav>
+
         <div class="sidebar-footer">
           <div id="schedule-pill" class="pill pill-muted">Schedule off</div>
         </div>
       </aside>
+      <div class="nav-backdrop" id="nav-backdrop" hidden></div>
 
       <main class="main">
         <header class="topbar">
-          <h1 id="page-title">Branding</h1>
+          <button class="nav-toggle" id="nav-toggle" type="button" aria-label="Open navigation">
+            <svg viewBox="0 0 24 24"><path d="M3 12h18"/><path d="M3 6h18"/><path d="M3 18h18"/></svg>
+          </button>
+          <div class="topbar-heading">
+            <h1 id="page-title">Dashboard</h1>
+            <p id="page-sub" class="page-sub"></p>
+          </div>
           <div class="topbar-actions">
-            <button id="save-btn" class="btn btn-primary" disabled>Save changes</button>
             <span id="save-status" class="hint"></span>
+            <button id="save-btn" class="btn btn-primary" disabled>Save changes</button>
           </div>
         </header>
 
-        <section id="section-branding" class="card">
-          <h2>Branding</h2>
-          <div class="row">
-            <label>Newsletter name
-              <input data-field="brand_name" type="text" placeholder="My Plex Newsletter" />
-            </label>
-            <label>Accent color
-              <div class="color-row">
-                <input data-field="brand_accent" type="text" placeholder="#e5a00d" />
-                <input data-field-pair="brand_accent" type="color" />
+        <div class="pages">
+
+          <!-- ============================== Dashboard ============================ -->
+          <section class="page" data-page="dashboard">
+            <div class="card hero-card">
+              <div class="hero-main">
+                <div class="hero-label">Next edition</div>
+                <div class="hero-value" id="dash-next-run">—</div>
+                <div class="hint" id="dash-schedule-detail"></div>
               </div>
-            </label>
-          </div>
-
-          <div class="row">
-            <label>Header (HTML allowed)
-              <textarea data-field="brand_header_html" rows="3" placeholder="Hey {{first_name}}, here's what's new this week."></textarea>
-            </label>
-            <label>Footer (HTML allowed)
-              <textarea data-field="brand_footer_html" rows="3" placeholder="You're receiving this because you have access to my Plex server."></textarea>
-            </label>
-          </div>
-          <p class="hint">
-            Placeholders: <code>{{first_name}}</code>, <code>{{name}}</code>, <code>{{email}}</code>, <code>{{unsubscribe_url}}</code>.
-            Falls back to <strong>"there"</strong> when a recipient has no name set (e.g. <em>"Hey there,"</em>).
-          </p>
-
-          <h3>Personalized greeting</h3>
-          <div class="row">
-            <label class="checkbox">
-              <input data-field="greeting_enabled" type="checkbox" />
-              <span>Show a greeting line at the top of the newsletter</span>
-            </label>
-          </div>
-          <div class="row single">
-            <label>Greeting text
-              <input data-field="greeting_text" type="text" placeholder="Welcome back, {{first_name}}" />
-            </label>
-          </div>
-          <p class="hint">Rendered prominently under the logo, personalized per recipient. Supports the same placeholders as above.</p>
-
-          <div class="logo-block">
-            <div class="logo-preview" id="logo-preview">
-              <span class="muted">No logo uploaded</span>
-            </div>
-            <div class="logo-actions">
-              <input id="logo-input" type="file" accept="image/png,image/jpeg,image/gif,image/svg+xml,image/webp" hidden />
-              <button class="btn" id="logo-upload-btn">Upload logo</button>
-              <button class="btn btn-danger" id="logo-remove-btn">Remove</button>
-              <p class="hint">PNG / JPG / SVG / WebP up to 5MB. Wide logos look best.</p>
-            </div>
-          </div>
-        </section>
-
-        <section id="section-tautulli" class="card">
-          <h2>Tautulli</h2>
-          <div class="row">
-            <label>Tautulli URL
-              <input data-field="tautulli_url" type="url" placeholder="http://192.168.1.x:8181" />
-            </label>
-            <label>API key
-              <input data-field="tautulli_api_key" type="password" placeholder="hex string from Tautulli settings" />
-            </label>
-          </div>
-          <div class="actions">
-            <button class="btn" id="test-tautulli-btn">Test connection</button>
-            <span id="test-tautulli-status" class="hint"></span>
-          </div>
-          <p class="hint">The container needs to reach Tautulli over the network. Posters are fetched server-side and embedded in the email, so recipients don't need direct access.</p>
-        </section>
-
-        <section id="section-arr" class="card">
-          <h2>Radarr / Sonarr</h2>
-          <p class="hint">
-            Pull a <strong>Coming Soon</strong> section into the newsletter — upcoming movie releases from Radarr
-            and upcoming episode air dates from Sonarr, over the next
-            <input data-field="upcoming_window_days" type="number" min="1" max="60" style="width:64px; display:inline-block; margin:0 4px;" /> days.
-            Cover art is shown alongside each item. Leave either one disabled if you only run one of them.
-          </p>
-
-          <h3>Coming Soon section</h3>
-          <div class="row">
-            <label class="checkbox">
-              <input data-field="enable_upcoming" type="checkbox" />
-              <span>Show the Coming Soon section in the newsletter</span>
-            </label>
-          </div>
-          <div class="row">
-            <label class="checkbox">
-              <input data-field="upcoming_replaces_recent" type="checkbox" />
-              <span>Replace Recently Added with Coming Soon (when there's anything upcoming)</span>
-            </label>
-          </div>
-          <p class="hint">
-            The master toggle hides the section entirely without losing your Radarr / Sonarr connection details below.
-            With <em>replace</em> on, weeks with upcoming content will swap out the "what got added" sections —
-            and weeks without will quietly fall back to Recently Added.
-          </p>
-
-          <h3>Radarr</h3>
-          <div class="row">
-            <label class="checkbox">
-              <input data-field="radarr_enabled" type="checkbox" />
-              <span>Include upcoming movies from Radarr</span>
-            </label>
-          </div>
-          <div class="row">
-            <label>Radarr URL
-              <input data-field="radarr_url" type="url" placeholder="http://192.168.1.x:7878" />
-            </label>
-            <label>API key
-              <input data-field="radarr_api_key" type="password" placeholder="from Settings → General in Radarr" />
-            </label>
-          </div>
-          <div class="actions">
-            <button class="btn" id="test-radarr-btn">Test connection</button>
-            <span id="test-radarr-status" class="hint"></span>
-          </div>
-
-          <h3>Sonarr</h3>
-          <div class="row">
-            <label class="checkbox">
-              <input data-field="sonarr_enabled" type="checkbox" />
-              <span>Include upcoming episodes from Sonarr</span>
-            </label>
-          </div>
-          <div class="row">
-            <label>Sonarr URL
-              <input data-field="sonarr_url" type="url" placeholder="http://192.168.1.x:8989" />
-            </label>
-            <label>API key
-              <input data-field="sonarr_api_key" type="password" placeholder="from Settings → General in Sonarr" />
-            </label>
-          </div>
-          <div class="actions">
-            <button class="btn" id="test-sonarr-btn">Test connection</button>
-            <span id="test-sonarr-status" class="hint"></span>
-          </div>
-          <p class="hint">Posters are pulled from TMDB / TVDB (publicly hosted), so they embed directly without going through your Radarr/Sonarr instance.</p>
-        </section>
-
-        <section id="section-requests" class="card">
-          <h2>Requests</h2>
-          <p class="hint">
-            Add a <strong>"Request a movie or show"</strong> button near the bottom of the newsletter, linking to your
-            <a href="https://overseerr.dev/" target="_blank" rel="noreferrer">Overseerr</a> /
-            <a href="https://github.com/Fallenbagel/jellyseerr" target="_blank" rel="noreferrer">Jellyseerr</a>
-            instance (or any URL). Lets recipients ask for content right from the email.
-          </p>
-          <div class="row">
-            <label class="checkbox">
-              <input data-field="request_enabled" type="checkbox" />
-              <span>Show the request button in the newsletter</span>
-            </label>
-          </div>
-          <div class="row">
-            <label>Request URL
-              <input data-field="request_url" type="url" placeholder="https://requests.yourdomain.com" />
-            </label>
-            <label>Button label
-              <input data-field="request_label" type="text" placeholder="Request a movie or show" />
-            </label>
-          </div>
-        </section>
-
-        <section id="section-images" class="card">
-          <h2>Image hosting</h2>
-          <p class="hint">
-            By default, posters are attached to each email as inline (CID) images. Most clients render them inline,
-            but Apple Mail, iOS Mail, and Outlook also list ~30 of them as <em>attachments</em>.
-            Hosting posters on <a href="https://cloudinary.com/" target="_blank" rel="noreferrer">Cloudinary</a>
-            (free tier is plenty) keeps the email lightweight — each poster is uploaded once,
-            cached, and embedded as a regular <code>&lt;img src="https://…"&gt;</code>.
-          </p>
-          <div class="row">
-            <label class="checkbox">
-              <input data-field="cloudinary_enabled" type="checkbox" />
-              <span>Use Cloudinary to host poster images</span>
-            </label>
-          </div>
-          <div class="row">
-            <label>Cloud name
-              <input data-field="cloudinary_cloud_name" type="text" placeholder="dxxxxxxxx" />
-            </label>
-            <label>Folder
-              <input data-field="cloudinary_folder" type="text" placeholder="pivo" />
-            </label>
-          </div>
-          <div class="row">
-            <label>API key
-              <input data-field="cloudinary_api_key" type="text" placeholder="123456789012345" />
-            </label>
-            <label>API secret
-              <input data-field="cloudinary_api_secret" type="password" placeholder="leave blank to keep current" />
-            </label>
-          </div>
-          <p class="hint">
-            Find these in Cloudinary under <strong>Settings → API Keys</strong>.
-            Posters are deduplicated by Plex <code>rating_key</code> + thumb version, so each poster is only uploaded once.
-          </p>
-        </section>
-
-        <section id="section-smtp" class="card">
-          <h2>Email (SMTP)</h2>
-          <p class="hint">
-            Pivo works with any SMTP provider — Postmark, Brevo, Mailgun, SendGrid, Amazon SES, or your own self-hosted relay.
-            Grab the host + port + credentials from your provider's dashboard.
-          </p>
-          <div class="row">
-            <label>SMTP host
-              <input data-field="smtp_host" type="text" placeholder="smtp.your-provider.com" />
-            </label>
-            <label>SMTP port
-              <input data-field="smtp_port" type="number" placeholder="587" />
-            </label>
-          </div>
-          <div class="row">
-            <label class="checkbox">
-              <input data-field="smtp_secure" type="checkbox" />
-              <span>Use TLS (port 465)</span>
-            </label>
-          </div>
-          <div class="row">
-            <label>Username
-              <input data-field="smtp_user" type="text" placeholder="api or your SMTP login" />
-            </label>
-            <label>Password
-              <input data-field="smtp_pass" type="password" placeholder="leave blank to keep current" />
-            </label>
-          </div>
-          <div class="row">
-            <label>From name
-              <input data-field="smtp_from_name" type="text" placeholder="My Plex" />
-            </label>
-            <label>From email
-              <input data-field="smtp_from_email" type="email" placeholder="newsletter@yourdomain.com" />
-            </label>
-          </div>
-          <div class="actions">
-            <button class="btn" id="test-smtp-btn">Test SMTP</button>
-            <span id="test-smtp-status" class="hint"></span>
-          </div>
-          <p class="hint">For best deliverability, set up <strong>SPF</strong>, <strong>DKIM</strong>, and <strong>DMARC</strong> DNS records on your sending domain in your SMTP provider's dashboard. Without these, Gmail and Yahoo will route your emails to spam.</p>
-
-          <h3>Public URL (for unsubscribe links)</h3>
-          <div class="row single">
-            <label>Where this app is reachable from the internet
-              <input data-field="public_url" type="url" placeholder="https://newsletter.yourdomain.com" />
-            </label>
-          </div>
-          <p class="hint">
-            Used to build per-recipient unsubscribe links and the <code>List-Unsubscribe</code> header (one-click compliance for Gmail / Yahoo).
-            Leave blank to omit unsubscribe links — fine for a tiny private list, not recommended for anything bigger.
-            No trailing slash, e.g. <code>https://newsletter.yourdomain.com</code>.
-          </p>
-        </section>
-
-        <section id="section-content" class="card">
-          <h2>Content</h2>
-          <div class="row">
-            <label>Recently-added items per category (max)
-              <input data-field="recently_added_count" type="number" min="1" max="100" />
-            </label>
-          </div>
-          <div class="row">
-            <label class="checkbox">
-              <input data-field="include_movies" type="checkbox" />
-              <span>Include movies</span>
-            </label>
-            <label class="checkbox">
-              <input data-field="include_tv" type="checkbox" />
-              <span>Include TV episodes</span>
-            </label>
-            <label class="checkbox">
-              <input data-field="include_music" type="checkbox" />
-              <span>Include music albums</span>
-            </label>
-            <label class="checkbox">
-              <input data-field="show_summaries" type="checkbox" />
-              <span>Show summaries</span>
-            </label>
-          </div>
-
-          <h3>Optional sections</h3>
-          <div class="row">
-            <label class="checkbox">
-              <input data-field="enable_top_watched" type="checkbox" />
-              <span>Most watched (movies + TV)</span>
-            </label>
-            <label class="checkbox">
-              <input data-field="enable_top_users" type="checkbox" />
-              <span>Top viewers</span>
-            </label>
-            <label class="checkbox">
-              <input data-field="enable_stats" type="checkbox" />
-              <span>Plays + watch time stats</span>
-            </label>
-          </div>
-          <div class="row">
-            <label>Stats window (days)
-              <input data-field="stats_window_days" type="number" min="1" max="90" />
-            </label>
-          </div>
-
-          <h3>Section order</h3>
-          <p class="hint">Drag to reorder how sections appear in the newsletter. Disabled or empty sections are simply skipped.</p>
-          <ul id="section-order-list" class="section-order" aria-label="Newsletter section order"></ul>
-        </section>
-
-        <section id="section-fun" class="card">
-          <h2>Fun &amp; stats</h2>
-          <p class="hint">Playful, data-driven sections that give the newsletter personality. Each one quietly hides itself when there's no data to show.</p>
-
-          <div class="row">
-            <label class="checkbox">
-              <input data-field="enable_flex_bar" type="checkbox" />
-              <span>State-of-the-server bar (library counts, storage, uptime)</span>
-            </label>
-            <label class="checkbox">
-              <input data-field="enable_superlatives" type="checkbox" />
-              <span>Server Wrapped awards (Night Owl, Biggest Binger, …)</span>
-            </label>
-          </div>
-          <div class="row">
-            <label>Awards to show
-              <input data-field="superlative_count" type="number" min="1" max="8" placeholder="4" />
-            </label>
-          </div>
-          <p class="hint">
-            Sixteen awards are computed from your watch history each period — completion habits, weekend patterns, longest
-            single sitting, oldest thing anyone dug up, and so on — but only the ones with a real winner qualify, and only this
-            many are shown. Without AI curation you get the strongest qualifiers in a fixed priority order.
-          </p>
-          <div class="row">
-            <label class="checkbox">
-              <input data-field="enable_fun_stats" type="checkbox" />
-              <span>Absurd unit conversions under the watch-time stats</span>
-            </label>
-            <label class="checkbox">
-              <input data-field="seasonal_theme_enabled" type="checkbox" />
-              <span>Seasonal auto-theming (accent + emoji on holidays)</span>
-            </label>
-          </div>
-          <p class="hint">
-            The awards read your Tautulli watch history over the <strong>stats window</strong> set in the Content tab.
-            Seasonal theming temporarily overrides your accent color around Halloween, the winter holidays, Valentine's, and a few others.
-          </p>
-
-          <h3>AI-written copy</h3>
-          <p class="hint">
-            Hands the <em>already-computed</em> award facts to a language model and lets it rephrase them with some personality.
-            The model never sees your raw watch history and never produces a number — if it fails, times out, or returns junk,
-            the newsletter silently falls back to the standard wording.
-          </p>
-          <div class="row">
-            <label class="checkbox">
-              <input data-field="enable_ai_captions" type="checkbox" />
-              <span>Rewrite the Server Wrapped award captions</span>
-            </label>
-            <label class="checkbox">
-              <input data-field="ai_write_intro" type="checkbox" />
-              <span>Also write a short intro above the newsletter</span>
-            </label>
-          </div>
-          <div class="row">
-            <label class="checkbox">
-              <input data-field="ai_write_subject" type="checkbox" />
-              <span>Write the subject line and inbox preview text</span>
-            </label>
-            <label class="checkbox">
-              <input data-field="ai_rewrite_summaries" type="checkbox" />
-              <span>Rewrite the recently-added blurbs</span>
-            </label>
-          </div>
-          <div class="row">
-            <label class="checkbox">
-              <input data-field="ai_curate_awards" type="checkbox" />
-              <span>Let the model pick and name the awards</span>
-            </label>
-          </div>
-          <p class="hint">
-            Hands the model the whole bench of qualifying awards and lets it choose which ones run this week, in what order,
-            and what to call them — inventing the category name and picking the emoji. The winner and the number are still
-            computed in code and cannot be changed by the model, so a renamed award always belongs to the right person.
-            Expect the section to look different week to week; that's the point.
-          </p>
-          <p class="hint">
-            The subject is otherwise a fixed template and the inbox preview line never changes at all, so every edition looks
-            identical in a crowded inbox — letting the model name what's actually in this one is the difference between a mail
-            that gets opened and one that doesn't. If a call fails or a cap blocks it, your <strong>Newsletter subject</strong>
-            template from the Schedule tab is used instead.
-          </p>
-          <p class="hint">
-            Blurb rewriting compresses the synopsis Plex already stores into one line that fits without being chopped mid-word.
-            The model is given that synopsis and told to work only from it — it is never asked what a title is about, which is
-            where it would start inventing plot. Needs <strong>Show summaries</strong> on in the Content tab, applies to movies
-            and albums (TV episodes carry no synopsis), and is the one option that noticeably grows the prompt: up to 12 items,
-            each synopsis trimmed to 300 characters before it is sent.
-          </p>
-          <div class="row">
-            <label>Provider
-              <select data-field="ai_provider">
-                <option value="openai">OpenAI-compatible</option>
-                <option value="anthropic">Anthropic</option>
-                <option value="ollama">Ollama (local)</option>
-              </select>
-            </label>
-            <label>Model
-              <input data-field="ai_model" type="text" placeholder="gpt-4o-mini / claude-opus-5 / llama3.2:3b" />
-            </label>
-          </div>
-          <div class="row">
-            <label>API base URL
-              <input data-field="ai_base_url" type="url" placeholder="leave blank for the provider default" />
-            </label>
-            <label>API key
-              <input data-field="ai_api_key" type="password" placeholder="leave blank to keep current" />
-            </label>
-          </div>
-          <div class="row">
-            <label>Timeout (ms)
-              <input data-field="ai_timeout_ms" type="number" placeholder="30000" />
-            </label>
-            <label>Ollama keep-alive
-              <input data-field="ai_ollama_keep_alive" type="text" placeholder="0s" />
-            </label>
-          </div>
-          <div class="row">
-            <label>Reasoning effort <span class="muted">(OpenAI-compatible)</span>
-              <select data-field="ai_reasoning_effort">
-                <option value="none">none — recommended</option>
-                <option value="low">low</option>
-                <option value="medium">medium</option>
-                <option value="high">high</option>
-                <option value="">don't send the parameter</option>
-              </select>
-            </label>
-          </div>
-          <p class="hint">
-            Reasoning models charge their thinking to the same output budget as the answer, so a model left on its default
-            effort can spend the entire <strong>max output tokens</strong> thinking and return nothing. Writing one-line captions
-            from facts that are already correct needs no reasoning at all, so <code>none</code> is both cheaper and better here.
-            Endpoints that don't understand the parameter have it dropped automatically.
-          </p>
-          <label>Tone direction <span class="muted">(optional)</span>
-            <textarea data-field="ai_extra_instructions" rows="3" placeholder="e.g. Dry and deadpan. Roast people gently. Never use exclamation marks."></textarea>
-          </label>
-          <p class="hint">
-            <strong>OpenAI-compatible</strong> covers OpenAI, OpenRouter, Groq, Together, DeepSeek, Mistral, LM Studio, llama.cpp and vLLM —
-            point the base URL at any of them. <strong>Ollama</strong> uses its native API so it can pass <code>keep_alive</code>;
-            <code>0s</code> unloads the model from VRAM the moment the newsletter is composed, which matters if the same GPU also
-            handles Plex transcodes. Leave the API key blank for local backends.
-          </p>
-
-          <h3>Spend limits</h3>
-          <p class="hint">
-            Caps are checked <em>before</em> each request and measured over rolling windows, so they can't be reset by waiting for
-            midnight. Hitting one is not an error — the newsletter just falls back to the standard wording, same as a timeout.
-            Set either to <code>0</code> to remove that limit. Local Ollama models cost nothing to run; the counters still tick so
-            you can spot a runaway prompt.
-          </p>
-          <div class="row">
-            <label>Max calls per 24h
-              <input data-field="ai_daily_call_cap" type="number" min="0" placeholder="25" />
-            </label>
-            <label>Max tokens per 30 days
-              <input data-field="ai_monthly_token_cap" type="number" min="0" placeholder="250000" />
-            </label>
-          </div>
-          <div class="row">
-            <label>Max output tokens per call
-              <input data-field="ai_max_output_tokens" type="number" min="1" max="4096" placeholder="700" />
-            </label>
-            <label>Reuse identical responses for (minutes)
-              <input data-field="ai_cache_ttl_min" type="number" min="0" placeholder="360" />
-            </label>
-          </div>
-          <p class="hint">
-            The preview recomposes the whole newsletter on every page load. Response reuse is what stops a tuning session from
-            billing once per refresh — an identical provider, model, prompt and output ceiling is served from cache. Changing the
-            tone direction changes the prompt, so you still see the effect of an edit immediately.
-          </p>
-
-          <div class="ai-usage" id="ai-usage">
-            <div class="ai-usage-head">
-              <h4>Usage</h4>
-              <div class="ai-usage-actions">
-                <button class="btn btn-ghost" id="ai-usage-refresh" type="button">Refresh</button>
-                <button class="btn btn-ghost" id="ai-cache-clear" type="button">Clear cache</button>
-                <button class="btn btn-danger" id="ai-usage-reset" type="button">Reset counters</button>
+              <div class="hero-actions">
+                <a class="btn" href="#/preview">Open preview</a>
+                <a class="btn" href="#/schedule">Adjust schedule</a>
               </div>
             </div>
-            <div id="ai-usage-body" class="muted">Loading…</div>
-            <p class="hint" id="ai-usage-note"></p>
-          </div>
 
-          <h3>Uptime badge</h3>
-          <div class="row">
-            <label class="checkbox">
-              <input data-field="uptime_enabled" type="checkbox" />
-              <span>Show an uptime % in the server bar</span>
-            </label>
-          </div>
-          <div class="row">
-            <label>Uptime monitor URL
-              <input data-field="uptime_kuma_url" type="url" placeholder="http://192.168.1.x:3001" />
-            </label>
-            <label>Status-page slug
-              <input data-field="uptime_kuma_slug" type="text" placeholder="default" />
-            </label>
-          </div>
-          <div class="actions">
-            <button class="btn" id="test-uptime-btn" type="button">Test uptime</button>
-            <span id="test-uptime-status" class="hint"></span>
-          </div>
-          <p class="hint">
-            Reads the aggregate uptime from a public status page on your uptime monitor (Uptime Kuma). The slug is the part of the
-            status-page URL after <code>/status/</code>. Recipients just see a friendly percentage — no jargon.
-          </p>
-        </section>
-
-        <section id="section-schedule" class="card">
-          <h2>Schedule</h2>
-          <div class="row">
-            <label class="checkbox">
-              <input data-field="schedule_enabled" type="checkbox" />
-              <span>Enable scheduled sending</span>
-            </label>
-          </div>
-          <div class="row">
-            <label>Cron expression
-              <input data-field="schedule_cron" type="text" placeholder="0 9 * * 0" />
-            </label>
-            <label>Email subject
-              <input data-field="newsletter_subject" type="text" placeholder="Hey {{first_name}}, new on Plex — {{date}}" />
-            </label>
-          </div>
-          <div class="presets">
-            <span class="hint">Presets:</span>
-            <button class="btn btn-ghost" data-cron="0 9 * * 0">Sun 9am</button>
-            <button class="btn btn-ghost" data-cron="0 9 * * 1">Mon 9am</button>
-            <button class="btn btn-ghost" data-cron="0 9 * * 5">Fri 9am</button>
-            <button class="btn btn-ghost" data-cron="0 9 1 * *">1st of month, 9am</button>
-            <button class="btn btn-ghost" data-cron="0 18 * * 0">Sun 6pm</button>
-          </div>
-          <p class="hint">Times are evaluated in the container's <code id="tz-name">TZ</code> timezone.<br/>
-            Use <a href="https://crontab.guru/" target="_blank" rel="noreferrer">crontab.guru</a> to build custom expressions. The subject supports <code>{{date}}</code>.
-          </p>
-          <div id="next-run" class="hint"></div>
-        </section>
-
-        <section id="section-recipients" class="card">
-          <h2>Recipients</h2>
-          <form id="add-recipient-form" class="row">
-            <label>Email
-              <input id="new-recipient-email" type="email" placeholder="friend@example.com" required />
-            </label>
-            <label>Name (optional)
-              <input id="new-recipient-name" type="text" placeholder="Friend Name" />
-            </label>
-            <button type="submit" class="btn btn-primary">Add</button>
-          </form>
-
-          <div class="import-row">
-            <button id="import-plex-btn" class="btn">Import from Plex</button>
-            <span id="import-plex-status" class="hint">Pulls everyone with shared access who has an email on file in Tautulli. New imports start <strong>inactive</strong> so you can review them before they receive anything.</span>
-          </div>
-
-          <div id="skipped-imports" class="skipped-block" hidden>
-            <h3>Plex users without an email — add manually</h3>
-            <p class="hint">These users have access to your server but Tautulli doesn't have their email. Names are pre-filled — just enter their address.</p>
-            <div id="skipped-list"></div>
-          </div>
-
-          <table class="table" id="recipients-table">
-            <thead>
-              <tr>
-                <th>Email</th>
-                <th>Name</th>
-                <th>Active</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </section>
-
-        <section id="section-preview" class="card">
-          <h2>Preview &amp; Send</h2>
-          <div class="actions">
-            <button id="preview-btn" class="btn">Refresh preview</button>
-            <input id="test-email" type="email" placeholder="you@example.com" />
-            <button id="test-send-btn" class="btn">Send test to me</button>
-            <button id="send-now-btn" class="btn btn-primary">Send to all active recipients</button>
-            <div class="device-toggle" data-preview="main" role="group" aria-label="Preview width">
-              <button class="btn btn-ghost device-btn active" type="button" data-device="desktop">Desktop</button>
-              <button class="btn btn-ghost device-btn" type="button" data-device="mobile">Mobile</button>
+            <div class="stat-grid">
+              <a class="stat-card" href="#/recipients">
+                <span class="stat-value" id="dash-recipients">—</span>
+                <span class="stat-label">Active recipients</span>
+                <span class="hint" id="dash-recipients-detail"></span>
+              </a>
+              <a class="stat-card" href="#/history">
+                <span class="stat-value" id="dash-last-send">—</span>
+                <span class="stat-label">Last send</span>
+                <span class="hint" id="dash-last-send-detail"></span>
+              </a>
+              <a class="stat-card" href="#/history">
+                <span class="stat-value" id="dash-send-count">—</span>
+                <span class="stat-label">Recent sends logged</span>
+                <span class="hint" id="dash-send-count-detail"></span>
+              </a>
+              <a class="stat-card" href="#/ai">
+                <span class="stat-value" id="dash-ai-calls">—</span>
+                <span class="stat-label">AI calls, last 24h</span>
+                <span class="hint" id="dash-ai-detail"></span>
+              </a>
             </div>
-          </div>
-          <span id="send-status" class="hint"></span>
-          <div class="preview-wrap">
-            <iframe id="preview-frame" title="Newsletter preview"></iframe>
-          </div>
-        </section>
 
-        <section id="section-compose" class="card">
-          <h2>Compose · One-off email</h2>
-          <p class="hint">
-            Send a spontaneous email to all or some of your recipients. Same branding shell as the newsletter
-            (logo header + footer + unsubscribe). Drop in any HTML — placeholders work just like the newsletter.
-          </p>
+            <div class="dash-columns">
+              <div class="card">
+                <h2>Setup checklist</h2>
+                <ul class="setup-list" id="dash-setup-list"></ul>
+              </div>
+              <div class="card">
+                <div class="card-head-row">
+                  <h2>Recent activity</h2>
+                  <a class="hint" href="#/history">View all →</a>
+                </div>
+                <div id="dash-activity"></div>
+              </div>
+            </div>
+          </section>
 
-          <div class="row single">
-            <label>Subject
-              <input id="bc-subject" type="text" placeholder="Hey {{first_name}}, server maintenance Friday" />
-            </label>
-          </div>
+          <!-- ============================== Branding ============================= -->
+          <section class="page" data-page="branding">
+            <div class="card">
+              <h2>Identity</h2>
+              <div class="row">
+                <label>Newsletter name
+                  <input data-field="brand_name" type="text" placeholder="My Plex Newsletter" />
+                </label>
+                <label>Accent color
+                  <div class="color-row">
+                    <input data-field="brand_accent" type="text" placeholder="#e5a00d" />
+                    <input data-field-pair="brand_accent" type="color" />
+                  </div>
+                </label>
+              </div>
 
-          <div class="row single">
-            <label>HTML body
-              <textarea id="bc-body" rows="14" placeholder="<h2>Heads up, {{first_name}}</h2>
+              <div class="row">
+                <label>Header (HTML allowed)
+                  <textarea data-field="brand_header_html" rows="3" placeholder="Hey {{first_name}}, here's what's new this week."></textarea>
+                </label>
+                <label>Footer (HTML allowed)
+                  <textarea data-field="brand_footer_html" rows="3" placeholder="You're receiving this because you have access to my Plex server."></textarea>
+                </label>
+              </div>
+              <p class="hint">
+                Placeholders: <code>{{first_name}}</code>, <code>{{name}}</code>, <code>{{email}}</code>, <code>{{unsubscribe_url}}</code>.
+                Falls back to <strong>"there"</strong> when a recipient has no name set (e.g. <em>"Hey there,"</em>).
+              </p>
+            </div>
+
+            <div class="card">
+              <h2>Personalized greeting</h2>
+              <div class="row">
+                <label class="checkbox">
+                  <input data-field="greeting_enabled" type="checkbox" />
+                  <span>Show a greeting line at the top of the newsletter</span>
+                </label>
+              </div>
+              <div class="row single">
+                <label>Greeting text
+                  <input data-field="greeting_text" type="text" placeholder="Welcome back, {{first_name}}" />
+                </label>
+              </div>
+              <p class="hint">Rendered prominently under the logo, personalized per recipient. Supports the same placeholders as above.</p>
+            </div>
+
+            <div class="card">
+              <h2>Logo</h2>
+              <div class="logo-block">
+                <div class="logo-preview" id="logo-preview">
+                  <span class="muted">No logo uploaded</span>
+                </div>
+                <div class="logo-actions">
+                  <input id="logo-input" type="file" accept="image/png,image/jpeg,image/gif,image/svg+xml,image/webp" hidden />
+                  <button class="btn" id="logo-upload-btn">Upload logo</button>
+                  <button class="btn btn-danger" id="logo-remove-btn">Remove</button>
+                  <p class="hint">PNG / JPG / SVG / WebP up to 5MB. Wide logos look best.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ============================== Content ============================== -->
+          <section class="page" data-page="content">
+            <div class="card">
+              <h2>Recently added</h2>
+              <div class="row">
+                <label>Recently-added items per category (max)
+                  <input data-field="recently_added_count" type="number" min="1" max="100" />
+                </label>
+              </div>
+              <div class="row">
+                <label class="checkbox">
+                  <input data-field="include_movies" type="checkbox" />
+                  <span>Include movies</span>
+                </label>
+                <label class="checkbox">
+                  <input data-field="include_tv" type="checkbox" />
+                  <span>Include TV episodes</span>
+                </label>
+                <label class="checkbox">
+                  <input data-field="include_music" type="checkbox" />
+                  <span>Include music albums</span>
+                </label>
+                <label class="checkbox">
+                  <input data-field="show_summaries" type="checkbox" />
+                  <span>Show summaries</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="card">
+              <h2>Optional sections</h2>
+              <div class="row">
+                <label class="checkbox">
+                  <input data-field="enable_top_watched" type="checkbox" />
+                  <span>Most watched (movies + TV)</span>
+                </label>
+                <label class="checkbox">
+                  <input data-field="enable_top_users" type="checkbox" />
+                  <span>Top viewers</span>
+                </label>
+                <label class="checkbox">
+                  <input data-field="enable_stats" type="checkbox" />
+                  <span>Plays + watch time stats</span>
+                </label>
+              </div>
+              <div class="row">
+                <label>Stats window (days)
+                  <input data-field="stats_window_days" type="number" min="1" max="90" />
+                </label>
+              </div>
+            </div>
+
+            <div class="card">
+              <h2>Section order</h2>
+              <p class="hint">Drag to reorder how sections appear in the newsletter. Disabled or empty sections are simply skipped.</p>
+              <ul id="section-order-list" class="section-order" aria-label="Newsletter section order"></ul>
+            </div>
+          </section>
+
+          <!-- ============================== Fun & stats ========================== -->
+          <section class="page" data-page="fun">
+            <div class="card">
+              <h2>Playful sections</h2>
+              <p class="hint">Playful, data-driven sections that give the newsletter personality. Each one quietly hides itself when there's no data to show.</p>
+
+              <div class="row">
+                <label class="checkbox">
+                  <input data-field="enable_flex_bar" type="checkbox" />
+                  <span>State-of-the-server bar (library counts, storage, uptime)</span>
+                </label>
+                <label class="checkbox">
+                  <input data-field="enable_superlatives" type="checkbox" />
+                  <span>Server Wrapped awards (Night Owl, Biggest Binger, …)</span>
+                </label>
+              </div>
+              <div class="row">
+                <label>Awards to show
+                  <input data-field="superlative_count" type="number" min="1" max="8" placeholder="4" />
+                </label>
+              </div>
+              <p class="hint">
+                Sixteen awards are computed from your watch history each period — completion habits, weekend patterns, longest
+                single sitting, oldest thing anyone dug up, and so on — but only the ones with a real winner qualify, and only this
+                many are shown. Without AI curation you get the strongest qualifiers in a fixed priority order.
+              </p>
+              <div class="row">
+                <label class="checkbox">
+                  <input data-field="enable_fun_stats" type="checkbox" />
+                  <span>Absurd unit conversions under the watch-time stats</span>
+                </label>
+                <label class="checkbox">
+                  <input data-field="seasonal_theme_enabled" type="checkbox" />
+                  <span>Seasonal auto-theming (accent + emoji on holidays)</span>
+                </label>
+              </div>
+              <p class="hint">
+                The awards read your Tautulli watch history over the <strong>stats window</strong> set on the Content page.
+                Seasonal theming temporarily overrides your accent color around Halloween, the winter holidays, Valentine's, and a few others.
+              </p>
+            </div>
+
+            <div class="card">
+              <h2>Uptime badge</h2>
+              <div class="row">
+                <label class="checkbox">
+                  <input data-field="uptime_enabled" type="checkbox" />
+                  <span>Show an uptime % in the server bar</span>
+                </label>
+              </div>
+              <div class="row">
+                <label>Uptime monitor URL
+                  <input data-field="uptime_kuma_url" type="url" placeholder="http://192.168.1.x:3001" />
+                </label>
+                <label>Status-page slug
+                  <input data-field="uptime_kuma_slug" type="text" placeholder="default" />
+                </label>
+              </div>
+              <div class="actions">
+                <button class="btn" id="test-uptime-btn" type="button">Test uptime</button>
+                <span id="test-uptime-status" class="hint"></span>
+              </div>
+              <p class="hint">
+                Reads the aggregate uptime from a public status page on your uptime monitor (Uptime Kuma). The slug is the part of the
+                status-page URL after <code>/status/</code>. Recipients just see a friendly percentage — no jargon.
+              </p>
+            </div>
+          </section>
+
+          <!-- ============================== AI copy ============================== -->
+          <section class="page" data-page="ai">
+            <div class="card">
+              <h2>AI-written copy</h2>
+              <p class="hint">
+                Hands the <em>already-computed</em> award facts to a language model and lets it rephrase them with some personality.
+                The model never sees your raw watch history and never produces a number — if it fails, times out, or returns junk,
+                the newsletter silently falls back to the standard wording.
+              </p>
+              <div class="row">
+                <label class="checkbox">
+                  <input data-field="enable_ai_captions" type="checkbox" />
+                  <span>Rewrite the Server Wrapped award captions</span>
+                </label>
+                <label class="checkbox">
+                  <input data-field="ai_write_intro" type="checkbox" />
+                  <span>Also write a short intro above the newsletter</span>
+                </label>
+              </div>
+              <div class="row">
+                <label class="checkbox">
+                  <input data-field="ai_write_subject" type="checkbox" />
+                  <span>Write the subject line and inbox preview text</span>
+                </label>
+                <label class="checkbox">
+                  <input data-field="ai_rewrite_summaries" type="checkbox" />
+                  <span>Rewrite the recently-added blurbs</span>
+                </label>
+              </div>
+              <div class="row">
+                <label class="checkbox">
+                  <input data-field="ai_curate_awards" type="checkbox" />
+                  <span>Let the model pick and name the awards</span>
+                </label>
+              </div>
+              <p class="hint">
+                Hands the model the whole bench of qualifying awards and lets it choose which ones run this week, in what order,
+                and what to call them — inventing the category name and picking the emoji. The winner and the number are still
+                computed in code and cannot be changed by the model, so a renamed award always belongs to the right person.
+                Expect the section to look different week to week; that's the point.
+              </p>
+              <p class="hint">
+                The subject is otherwise a fixed template and the inbox preview line never changes at all, so every edition looks
+                identical in a crowded inbox — letting the model name what's actually in this one is the difference between a mail
+                that gets opened and one that doesn't. If a call fails or a cap blocks it, your <strong>Newsletter subject</strong>
+                template from the Schedule page is used instead.
+              </p>
+              <p class="hint">
+                Blurb rewriting compresses the synopsis Plex already stores into one line that fits without being chopped mid-word.
+                The model is given that synopsis and told to work only from it — it is never asked what a title is about, which is
+                where it would start inventing plot. Needs <strong>Show summaries</strong> on in the Content page, applies to movies
+                and albums (TV episodes carry no synopsis), and is the one option that noticeably grows the prompt: up to 12 items,
+                each synopsis trimmed to 300 characters before it is sent.
+              </p>
+            </div>
+
+            <div class="card">
+              <h2>Model &amp; provider</h2>
+              <div class="row">
+                <label>Provider
+                  <select data-field="ai_provider">
+                    <option value="openai">OpenAI-compatible</option>
+                    <option value="anthropic">Anthropic</option>
+                    <option value="ollama">Ollama (local)</option>
+                  </select>
+                </label>
+                <label>Model
+                  <input data-field="ai_model" type="text" placeholder="gpt-4o-mini / claude-opus-5 / llama3.2:3b" />
+                </label>
+              </div>
+              <div class="row">
+                <label>API base URL
+                  <input data-field="ai_base_url" type="url" placeholder="leave blank for the provider default" />
+                </label>
+                <label>API key
+                  <input data-field="ai_api_key" type="password" placeholder="leave blank to keep current" />
+                </label>
+              </div>
+              <div class="row">
+                <label>Timeout (ms)
+                  <input data-field="ai_timeout_ms" type="number" placeholder="30000" />
+                </label>
+                <label>Ollama keep-alive
+                  <input data-field="ai_ollama_keep_alive" type="text" placeholder="0s" />
+                </label>
+              </div>
+              <div class="row">
+                <label>Reasoning effort <span class="muted">(OpenAI-compatible)</span>
+                  <select data-field="ai_reasoning_effort">
+                    <option value="none">none — recommended</option>
+                    <option value="low">low</option>
+                    <option value="medium">medium</option>
+                    <option value="high">high</option>
+                    <option value="">don't send the parameter</option>
+                  </select>
+                </label>
+              </div>
+              <p class="hint">
+                Reasoning models charge their thinking to the same output budget as the answer, so a model left on its default
+                effort can spend the entire <strong>max output tokens</strong> thinking and return nothing. Writing one-line captions
+                from facts that are already correct needs no reasoning at all, so <code>none</code> is both cheaper and better here.
+                Endpoints that don't understand the parameter have it dropped automatically.
+              </p>
+              <label>Tone direction <span class="muted">(optional)</span>
+                <textarea data-field="ai_extra_instructions" rows="3" placeholder="e.g. Dry and deadpan. Roast people gently. Never use exclamation marks."></textarea>
+              </label>
+              <p class="hint">
+                <strong>OpenAI-compatible</strong> covers OpenAI, OpenRouter, Groq, Together, DeepSeek, Mistral, LM Studio, llama.cpp and vLLM —
+                point the base URL at any of them. <strong>Ollama</strong> uses its native API so it can pass <code>keep_alive</code>;
+                <code>0s</code> unloads the model from VRAM the moment the newsletter is composed, which matters if the same GPU also
+                handles Plex transcodes. Leave the API key blank for local backends.
+              </p>
+            </div>
+
+            <div class="card">
+              <h2>Spend limits</h2>
+              <p class="hint">
+                Caps are checked <em>before</em> each request and measured over rolling windows, so they can't be reset by waiting for
+                midnight. Hitting one is not an error — the newsletter just falls back to the standard wording, same as a timeout.
+                Set either to <code>0</code> to remove that limit. Local Ollama models cost nothing to run; the counters still tick so
+                you can spot a runaway prompt.
+              </p>
+              <div class="row">
+                <label>Max calls per 24h
+                  <input data-field="ai_daily_call_cap" type="number" min="0" placeholder="25" />
+                </label>
+                <label>Max tokens per 30 days
+                  <input data-field="ai_monthly_token_cap" type="number" min="0" placeholder="250000" />
+                </label>
+              </div>
+              <div class="row">
+                <label>Max output tokens per call
+                  <input data-field="ai_max_output_tokens" type="number" min="1" max="4096" placeholder="700" />
+                </label>
+                <label>Reuse identical responses for (minutes)
+                  <input data-field="ai_cache_ttl_min" type="number" min="0" placeholder="360" />
+                </label>
+              </div>
+              <p class="hint">
+                The preview recomposes the whole newsletter on every page load. Response reuse is what stops a tuning session from
+                billing once per refresh — an identical provider, model, prompt and output ceiling is served from cache. Changing the
+                tone direction changes the prompt, so you still see the effect of an edit immediately.
+              </p>
+
+              <div class="ai-usage" id="ai-usage">
+                <div class="ai-usage-head">
+                  <h4>Usage</h4>
+                  <div class="ai-usage-actions">
+                    <button class="btn btn-ghost" id="ai-usage-refresh" type="button">Refresh</button>
+                    <button class="btn btn-ghost" id="ai-cache-clear" type="button">Clear cache</button>
+                    <button class="btn btn-danger" id="ai-usage-reset" type="button">Reset counters</button>
+                  </div>
+                </div>
+                <div id="ai-usage-body" class="muted">Loading…</div>
+                <p class="hint" id="ai-usage-note"></p>
+              </div>
+            </div>
+          </section>
+
+          <!-- ============================== Tautulli ============================= -->
+          <section class="page" data-page="tautulli">
+            <div class="card">
+              <h2>Connection</h2>
+              <div class="row">
+                <label>Tautulli URL
+                  <input data-field="tautulli_url" type="url" placeholder="http://192.168.1.x:8181" />
+                </label>
+                <label>API key
+                  <input data-field="tautulli_api_key" type="password" placeholder="hex string from Tautulli settings" />
+                </label>
+              </div>
+              <div class="actions">
+                <button class="btn" id="test-tautulli-btn">Test connection</button>
+                <span id="test-tautulli-status" class="hint"></span>
+              </div>
+              <p class="hint">The container needs to reach Tautulli over the network. Posters are fetched server-side and embedded in the email, so recipients don't need direct access.</p>
+            </div>
+          </section>
+
+          <!-- ============================== Radarr / Sonarr ====================== -->
+          <section class="page" data-page="arr">
+            <div class="card">
+              <h2>Coming Soon section</h2>
+              <p class="hint">
+                Pull a <strong>Coming Soon</strong> section into the newsletter — upcoming movie releases from Radarr
+                and upcoming episode air dates from Sonarr, over the next
+                <input data-field="upcoming_window_days" type="number" min="1" max="60" style="width:64px; display:inline-block; margin:0 4px;" /> days.
+                Cover art is shown alongside each item. Leave either one disabled if you only run one of them.
+              </p>
+              <div class="row">
+                <label class="checkbox">
+                  <input data-field="enable_upcoming" type="checkbox" />
+                  <span>Show the Coming Soon section in the newsletter</span>
+                </label>
+              </div>
+              <div class="row">
+                <label class="checkbox">
+                  <input data-field="upcoming_replaces_recent" type="checkbox" />
+                  <span>Replace Recently Added with Coming Soon (when there's anything upcoming)</span>
+                </label>
+              </div>
+              <p class="hint">
+                The master toggle hides the section entirely without losing your Radarr / Sonarr connection details below.
+                With <em>replace</em> on, weeks with upcoming content will swap out the "what got added" sections —
+                and weeks without will quietly fall back to Recently Added.
+              </p>
+            </div>
+
+            <div class="card">
+              <h2>Radarr</h2>
+              <div class="row">
+                <label class="checkbox">
+                  <input data-field="radarr_enabled" type="checkbox" />
+                  <span>Include upcoming movies from Radarr</span>
+                </label>
+              </div>
+              <div class="row">
+                <label>Radarr URL
+                  <input data-field="radarr_url" type="url" placeholder="http://192.168.1.x:7878" />
+                </label>
+                <label>API key
+                  <input data-field="radarr_api_key" type="password" placeholder="from Settings → General in Radarr" />
+                </label>
+              </div>
+              <div class="actions">
+                <button class="btn" id="test-radarr-btn">Test connection</button>
+                <span id="test-radarr-status" class="hint"></span>
+              </div>
+            </div>
+
+            <div class="card">
+              <h2>Sonarr</h2>
+              <div class="row">
+                <label class="checkbox">
+                  <input data-field="sonarr_enabled" type="checkbox" />
+                  <span>Include upcoming episodes from Sonarr</span>
+                </label>
+              </div>
+              <div class="row">
+                <label>Sonarr URL
+                  <input data-field="sonarr_url" type="url" placeholder="http://192.168.1.x:8989" />
+                </label>
+                <label>API key
+                  <input data-field="sonarr_api_key" type="password" placeholder="from Settings → General in Sonarr" />
+                </label>
+              </div>
+              <div class="actions">
+                <button class="btn" id="test-sonarr-btn">Test connection</button>
+                <span id="test-sonarr-status" class="hint"></span>
+              </div>
+              <p class="hint">Posters are pulled from TMDB / TVDB (publicly hosted), so they embed directly without going through your Radarr/Sonarr instance.</p>
+            </div>
+          </section>
+
+          <!-- ============================== Requests ============================= -->
+          <section class="page" data-page="requests">
+            <div class="card">
+              <h2>Request button</h2>
+              <p class="hint">
+                Add a <strong>"Request a movie or show"</strong> button near the bottom of the newsletter, linking to your
+                <a href="https://overseerr.dev/" target="_blank" rel="noreferrer">Overseerr</a> /
+                <a href="https://github.com/Fallenbagel/jellyseerr" target="_blank" rel="noreferrer">Jellyseerr</a>
+                instance (or any URL). Lets recipients ask for content right from the email.
+              </p>
+              <div class="row">
+                <label class="checkbox">
+                  <input data-field="request_enabled" type="checkbox" />
+                  <span>Show the request button in the newsletter</span>
+                </label>
+              </div>
+              <div class="row">
+                <label>Request URL
+                  <input data-field="request_url" type="url" placeholder="https://requests.yourdomain.com" />
+                </label>
+                <label>Button label
+                  <input data-field="request_label" type="text" placeholder="Request a movie or show" />
+                </label>
+              </div>
+            </div>
+          </section>
+
+          <!-- ============================== Image hosting ======================== -->
+          <section class="page" data-page="images">
+            <div class="card">
+              <h2>Cloudinary</h2>
+              <p class="hint">
+                By default, posters are attached to each email as inline (CID) images. Most clients render them inline,
+                but Apple Mail, iOS Mail, and Outlook also list ~30 of them as <em>attachments</em>.
+                Hosting posters on <a href="https://cloudinary.com/" target="_blank" rel="noreferrer">Cloudinary</a>
+                (free tier is plenty) keeps the email lightweight — each poster is uploaded once,
+                cached, and embedded as a regular <code>&lt;img src="https://…"&gt;</code>.
+              </p>
+              <div class="row">
+                <label class="checkbox">
+                  <input data-field="cloudinary_enabled" type="checkbox" />
+                  <span>Use Cloudinary to host poster images</span>
+                </label>
+              </div>
+              <div class="row">
+                <label>Cloud name
+                  <input data-field="cloudinary_cloud_name" type="text" placeholder="dxxxxxxxx" />
+                </label>
+                <label>Folder
+                  <input data-field="cloudinary_folder" type="text" placeholder="pivo" />
+                </label>
+              </div>
+              <div class="row">
+                <label>API key
+                  <input data-field="cloudinary_api_key" type="text" placeholder="123456789012345" />
+                </label>
+                <label>API secret
+                  <input data-field="cloudinary_api_secret" type="password" placeholder="leave blank to keep current" />
+                </label>
+              </div>
+              <p class="hint">
+                Find these in Cloudinary under <strong>Settings → API Keys</strong>.
+                Posters are deduplicated by Plex <code>rating_key</code> + thumb version, so each poster is only uploaded once.
+              </p>
+            </div>
+          </section>
+
+          <!-- ============================== SMTP ================================= -->
+          <section class="page" data-page="smtp">
+            <div class="card">
+              <h2>SMTP server</h2>
+              <p class="hint">
+                Pivo works with any SMTP provider — Postmark, Brevo, Mailgun, SendGrid, Amazon SES, or your own self-hosted relay.
+                Grab the host + port + credentials from your provider's dashboard.
+              </p>
+              <div class="row">
+                <label>SMTP host
+                  <input data-field="smtp_host" type="text" placeholder="smtp.your-provider.com" />
+                </label>
+                <label>SMTP port
+                  <input data-field="smtp_port" type="number" placeholder="587" />
+                </label>
+              </div>
+              <div class="row">
+                <label class="checkbox">
+                  <input data-field="smtp_secure" type="checkbox" />
+                  <span>Use TLS (port 465)</span>
+                </label>
+              </div>
+              <div class="row">
+                <label>Username
+                  <input data-field="smtp_user" type="text" placeholder="api or your SMTP login" />
+                </label>
+                <label>Password
+                  <input data-field="smtp_pass" type="password" placeholder="leave blank to keep current" />
+                </label>
+              </div>
+              <div class="row">
+                <label>From name
+                  <input data-field="smtp_from_name" type="text" placeholder="My Plex" />
+                </label>
+                <label>From email
+                  <input data-field="smtp_from_email" type="email" placeholder="newsletter@yourdomain.com" />
+                </label>
+              </div>
+              <div class="actions">
+                <button class="btn" id="test-smtp-btn">Test SMTP</button>
+                <span id="test-smtp-status" class="hint"></span>
+              </div>
+              <p class="hint">For best deliverability, set up <strong>SPF</strong>, <strong>DKIM</strong>, and <strong>DMARC</strong> DNS records on your sending domain in your SMTP provider's dashboard. Without these, Gmail and Yahoo will route your emails to spam.</p>
+            </div>
+
+            <div class="card">
+              <h2>Public URL (for unsubscribe links)</h2>
+              <div class="row single">
+                <label>Where this app is reachable from the internet
+                  <input data-field="public_url" type="url" placeholder="https://newsletter.yourdomain.com" />
+                </label>
+              </div>
+              <p class="hint">
+                Used to build per-recipient unsubscribe links and the <code>List-Unsubscribe</code> header (one-click compliance for Gmail / Yahoo).
+                Leave blank to omit unsubscribe links — fine for a tiny private list, not recommended for anything bigger.
+                No trailing slash, e.g. <code>https://newsletter.yourdomain.com</code>.
+              </p>
+            </div>
+          </section>
+
+          <!-- ============================== Schedule ============================= -->
+          <section class="page" data-page="schedule">
+            <div class="card">
+              <h2>Sending schedule</h2>
+              <div class="row">
+                <label class="checkbox">
+                  <input data-field="schedule_enabled" type="checkbox" />
+                  <span>Enable scheduled sending</span>
+                </label>
+              </div>
+              <div class="row">
+                <label>Cron expression
+                  <input data-field="schedule_cron" type="text" placeholder="0 9 * * 0" />
+                </label>
+                <label>Email subject
+                  <input data-field="newsletter_subject" type="text" placeholder="Hey {{first_name}}, new on Plex — {{date}}" />
+                </label>
+              </div>
+              <div class="presets">
+                <span class="hint">Presets:</span>
+                <button class="btn btn-ghost" data-cron="0 9 * * 0">Sun 9am</button>
+                <button class="btn btn-ghost" data-cron="0 9 * * 1">Mon 9am</button>
+                <button class="btn btn-ghost" data-cron="0 9 * * 5">Fri 9am</button>
+                <button class="btn btn-ghost" data-cron="0 9 1 * *">1st of month, 9am</button>
+                <button class="btn btn-ghost" data-cron="0 18 * * 0">Sun 6pm</button>
+              </div>
+              <p class="hint">Times are evaluated in the container's <code id="tz-name">TZ</code> timezone.<br/>
+                Use <a href="https://crontab.guru/" target="_blank" rel="noreferrer">crontab.guru</a> to build custom expressions. The subject supports <code>{{date}}</code>.
+              </p>
+              <div id="next-run" class="hint"></div>
+            </div>
+          </section>
+
+          <!-- ============================== Recipients =========================== -->
+          <section class="page" data-page="recipients">
+            <div class="card">
+              <h2>Add a recipient</h2>
+              <form id="add-recipient-form" class="row">
+                <label>Email
+                  <input id="new-recipient-email" type="email" placeholder="friend@example.com" required />
+                </label>
+                <label>Name (optional)
+                  <input id="new-recipient-name" type="text" placeholder="Friend Name" />
+                </label>
+                <button type="submit" class="btn btn-primary">Add</button>
+              </form>
+
+              <div class="import-row">
+                <button id="import-plex-btn" class="btn">Import from Plex</button>
+                <span id="import-plex-status" class="hint">Pulls everyone with shared access who has an email on file in Tautulli. New imports start <strong>inactive</strong> so you can review them before they receive anything.</span>
+              </div>
+
+              <div id="skipped-imports" class="skipped-block" hidden>
+                <h3>Plex users without an email — add manually</h3>
+                <p class="hint">These users have access to your server but Tautulli doesn't have their email. Names are pre-filled — just enter their address.</p>
+                <div id="skipped-list"></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <h2>Subscriber list</h2>
+              <table class="table" id="recipients-table">
+                <thead>
+                  <tr>
+                    <th>Email</th>
+                    <th>Name</th>
+                    <th>Active</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- ============================== Preview & send ======================= -->
+          <section class="page" data-page="preview">
+            <div class="card">
+              <h2>Newsletter preview</h2>
+              <div class="actions">
+                <button id="preview-btn" class="btn">Refresh preview</button>
+                <input id="test-email" type="email" placeholder="you@example.com" />
+                <button id="test-send-btn" class="btn">Send test to me</button>
+                <button id="send-now-btn" class="btn btn-primary">Send to all active recipients</button>
+                <div class="device-toggle" data-preview="main" role="group" aria-label="Preview width">
+                  <button class="btn btn-ghost device-btn active" type="button" data-device="desktop">Desktop</button>
+                  <button class="btn btn-ghost device-btn" type="button" data-device="mobile">Mobile</button>
+                </div>
+              </div>
+              <span id="send-status" class="hint"></span>
+              <div class="preview-wrap">
+                <iframe id="preview-frame" title="Newsletter preview"></iframe>
+              </div>
+            </div>
+          </section>
+
+          <!-- ============================== Compose ============================== -->
+          <section class="page" data-page="compose">
+            <div class="card">
+              <h2>One-off email</h2>
+              <p class="hint">
+                Send a spontaneous email to all or some of your recipients. Same branding shell as the newsletter
+                (logo header + footer + unsubscribe). Drop in any HTML — placeholders work just like the newsletter.
+              </p>
+
+              <div class="row single">
+                <label>Subject
+                  <input id="bc-subject" type="text" placeholder="Hey {{first_name}}, server maintenance Friday" />
+                </label>
+              </div>
+
+              <div class="row single">
+                <label>HTML body
+                  <textarea id="bc-body" rows="14" placeholder="<h2>Heads up, {{first_name}}</h2>
 <p>The Plex server will be down Friday from 8–10pm for maintenance.</p>
 <p>Catch up on <em>For All Mankind</em> ahead of time. <a href='https://app.plex.tv'>Open Plex</a></p>"></textarea>
-            </label>
-          </div>
-          <p class="hint">
-            Placeholders: <code>{{first_name}}</code>, <code>{{name}}</code>, <code>{{email}}</code>, <code>{{unsubscribe_url}}</code>.
-            Tags like <code>&lt;h1&gt;</code>–<code>&lt;h3&gt;</code>, <code>&lt;p&gt;</code>, <code>&lt;ul&gt;</code>/<code>&lt;ol&gt;</code>,
-            <code>&lt;a&gt;</code>, <code>&lt;blockquote&gt;</code>, <code>&lt;hr&gt;</code>, and <code>&lt;img&gt;</code> are styled to match.
-          </p>
+                </label>
+              </div>
+              <p class="hint">
+                Placeholders: <code>{{first_name}}</code>, <code>{{name}}</code>, <code>{{email}}</code>, <code>{{unsubscribe_url}}</code>.
+                Tags like <code>&lt;h1&gt;</code>–<code>&lt;h3&gt;</code>, <code>&lt;p&gt;</code>, <code>&lt;ul&gt;</code>/<code>&lt;ol&gt;</code>,
+                <code>&lt;a&gt;</code>, <code>&lt;blockquote&gt;</code>, <code>&lt;hr&gt;</code>, and <code>&lt;img&gt;</code> are styled to match.
+              </p>
 
-          <div class="row">
-            <label class="checkbox">
-              <input id="bc-wrap" type="checkbox" checked />
-              <span>Wrap with branding (header + footer + unsubscribe)</span>
-            </label>
-          </div>
+              <div class="row">
+                <label class="checkbox">
+                  <input id="bc-wrap" type="checkbox" checked />
+                  <span>Wrap with branding (header + footer + unsubscribe)</span>
+                </label>
+              </div>
 
-          <h3>Recipients</h3>
-          <div class="row single">
-            <label class="checkbox">
-              <input type="radio" name="bc-rcpt-mode" id="bc-mode-all" value="all" checked />
-              <span>All active recipients (<span id="bc-active-count">…</span>)</span>
-            </label>
-            <label class="checkbox">
-              <input type="radio" name="bc-rcpt-mode" id="bc-mode-some" value="some" />
-              <span>Pick specific recipients</span>
-            </label>
-          </div>
+              <h3>Recipients</h3>
+              <div class="row single">
+                <label class="checkbox">
+                  <input type="radio" name="bc-rcpt-mode" id="bc-mode-all" value="all" checked />
+                  <span>All active recipients (<span id="bc-active-count">…</span>)</span>
+                </label>
+                <label class="checkbox">
+                  <input type="radio" name="bc-rcpt-mode" id="bc-mode-some" value="some" />
+                  <span>Pick specific recipients</span>
+                </label>
+              </div>
 
-          <div id="bc-picker" class="bc-picker" hidden>
-            <div class="bc-picker-toolbar">
-              <input id="bc-picker-search" type="text" placeholder="Filter by name or email…" />
-              <button class="btn btn-ghost" type="button" id="bc-picker-all">All</button>
-              <button class="btn btn-ghost" type="button" id="bc-picker-none">None</button>
-              <span class="hint" id="bc-picker-count">0 selected</span>
+              <div id="bc-picker" class="bc-picker" hidden>
+                <div class="bc-picker-toolbar">
+                  <input id="bc-picker-search" type="text" placeholder="Filter by name or email…" />
+                  <button class="btn btn-ghost" type="button" id="bc-picker-all">All</button>
+                  <button class="btn btn-ghost" type="button" id="bc-picker-none">None</button>
+                  <span class="hint" id="bc-picker-count">0 selected</span>
+                </div>
+                <div id="bc-picker-list"></div>
+              </div>
+
+              <div class="actions">
+                <button class="btn" id="bc-preview-btn" type="button">Refresh preview</button>
+                <input id="bc-test-email" type="email" placeholder="you@example.com" />
+                <button class="btn" id="bc-test-btn" type="button">Send test to me</button>
+                <button class="btn btn-primary" id="bc-send-btn" type="button">Send broadcast</button>
+                <div class="device-toggle" data-preview="bc" role="group" aria-label="Preview width">
+                  <button class="btn btn-ghost device-btn active" type="button" data-device="desktop">Desktop</button>
+                  <button class="btn btn-ghost device-btn" type="button" data-device="mobile">Mobile</button>
+                </div>
+              </div>
+              <span id="bc-status" class="hint"></span>
+              <div class="preview-wrap">
+                <iframe id="bc-preview-frame" title="Broadcast preview"></iframe>
+              </div>
             </div>
-            <div id="bc-picker-list"></div>
-          </div>
+          </section>
 
-          <div class="actions">
-            <button class="btn" id="bc-preview-btn" type="button">Refresh preview</button>
-            <input id="bc-test-email" type="email" placeholder="you@example.com" />
-            <button class="btn" id="bc-test-btn" type="button">Send test to me</button>
-            <button class="btn btn-primary" id="bc-send-btn" type="button">Send broadcast</button>
-            <div class="device-toggle" data-preview="bc" role="group" aria-label="Preview width">
-              <button class="btn btn-ghost device-btn active" type="button" data-device="desktop">Desktop</button>
-              <button class="btn btn-ghost device-btn" type="button" data-device="mobile">Mobile</button>
+          <!-- ============================== History ============================== -->
+          <section class="page" data-page="history">
+            <div class="card">
+              <div class="card-head-row">
+                <h2>Send history</h2>
+                <button class="btn btn-ghost" id="history-refresh" type="button">Refresh</button>
+              </div>
+              <table class="table" id="history-table">
+                <thead>
+                  <tr>
+                    <th>When</th>
+                    <th>Type</th>
+                    <th>Subject</th>
+                    <th>Recipients</th>
+                    <th>Status</th>
+                    <th>Duration</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
             </div>
-          </div>
-          <span id="bc-status" class="hint"></span>
-          <div class="preview-wrap">
-            <iframe id="bc-preview-frame" title="Broadcast preview"></iframe>
-          </div>
-        </section>
+          </section>
 
-        <section id="section-history" class="card">
-          <h2>History</h2>
-          <table class="table" id="history-table">
-            <thead>
-              <tr>
-                <th>When</th>
-                <th>Type</th>
-                <th>Subject</th>
-                <th>Recipients</th>
-                <th>Status</th>
-                <th>Duration</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </section>
+        </div>
       </main>
     </div>
+
+    <div id="toast-root" aria-live="polite"></div>
 
     <script src="/app.js" type="module"></script>
   </body>
